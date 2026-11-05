@@ -42,20 +42,35 @@
   var $ = function (id) { return document.getElementById(id); };
 
   // ---------- setup link: #setup=<base64url of {"u": execUrl, "k": appKey}> ----------
-  function readSetupLink() {
-    var m = location.hash.match(/^#setup=([A-Za-z0-9_\-]+)$/);
-    if (!m) return;
-    history.replaceState(null, '', location.pathname + location.search); // drop the key from the address bar
+  // Lenient on purpose: messaging apps sometimes add a trailing character, turn
+  // the # into %23, or move the part into the query string.
+  function applySetup(text) {
+    var m = String(text || '').replace(/%23/gi, '#').replace(/%3D/gi, '=').match(/(?:^|[#?&\s])setup=([A-Za-z0-9_\-]{20,})/);
+    if (!m) return null;
     try {
       var b64 = m[1].replace(/-/g, '+').replace(/_/g, '/');
       var cfg = JSON.parse(atob(b64 + '==='.slice((b64.length + 3) % 4)));
-      if (!/^https:\/\/script\.google\.com\/macros\/s\/[A-Za-z0-9_\-]+\/exec$/.test(cfg.u) || !cfg.k) throw new Error('bad link');
+      if (!/^https:\/\/script\.google\.com\/macros\/s\/[A-Za-z0-9_\-]+\/exec$/.test(cfg.u) || !cfg.k) return false;
       localStorage.setItem(LS.api, cfg.u);
       localStorage.setItem(LS.key, cfg.k);
-      notice('This phone is set up.', false);
-    } catch (e) {
-      notice('That setup link didn\'t work. Ask the person who set this up to send it again.', true);
-    }
+      return true;
+    } catch (e) { return false; }
+  }
+
+  function readSetupLink() {
+    if (!/setup(=|%3D)/i.test(location.href)) return;
+    var ok = applySetup(location.href);
+    history.replaceState(null, '', location.pathname); // drop the key from the address bar
+    if (ok) notice('This phone is set up.', false);
+    else notice('That setup link didn\'t work. Ask the person who set this up to send it again.', true);
+  }
+
+  function pasteSetup() {
+    var ok = applySetup($('setupPaste').value);
+    $('setupPaste').value = '';
+    if (!ok) { notice('That isn\'t a working setup link. Copy the whole link and paste it again.', true); return; }
+    notice('This phone is set up.', false);
+    loadList();
   }
 
   // ---------- API ----------
@@ -498,6 +513,7 @@
     });
   });
   $('clearDoneBtn').addEventListener('click', clearDone);
+  $('setupForm').addEventListener('submit', function (ev) { ev.preventDefault(); pasteSetup(); });
   document.addEventListener('visibilitychange', function () {
     if (document.visibilityState === 'visible' && !$('list').hidden && Date.now() - lastLoad > STALE_MS &&
       !Object.keys(pendingDone).length && !$('taskDialog').open) loadList();

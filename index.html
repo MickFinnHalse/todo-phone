@@ -33,7 +33,12 @@
   <main id="main">
     <section id="setup" class="panel" hidden>
       <h2>Set up this phone</h2>
-      <p>Open the setup link you were sent, on this phone. It connects the app to the to-do list once, and the phone remembers it.</p>
+      <p>You need the setup link you were sent. It connects this app to the to-do list once, and the phone remembers it.</p>
+      <p>Press and hold the link in your message, choose <b>Copy link</b>, then paste it here:</p>
+      <form id="setupForm" class="setup-form">
+        <input id="setupPaste" type="text" autocomplete="off" autocapitalize="off" spellcheck="false" placeholder="Paste the setup link">
+        <button type="submit" class="btn primary">Connect</button>
+      </form>
     </section>
 
     <section id="picker" class="panel" hidden>

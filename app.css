@@ -134,3 +134,10 @@ dialog .row { display: grid; grid-template-columns: 1fr 1fr; gap: 10px; }
 .custom .row { display: grid; grid-template-columns: 1fr 120px; gap: 8px; margin-bottom: 8px; }
 
 .task .meta .cat { font-weight: 600; color: var(--ink); }
+
+/* The hidden attribute must win over display rules (the + button showed on the setup screen). */
+[hidden] { display: none !important; }
+
+.setup-form { display: flex; gap: 8px; margin-top: 8px; }
+.setup-form input { flex: 1; min-width: 0; padding: 10px; border: 1px solid var(--line); border-radius: 10px;
+  background: var(--card); color: var(--ink); font: inherit; font-size: 1rem; }
