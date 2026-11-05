@@ -1,24 +1,28 @@
+/* Colours chosen by the owner in the colour mockup, 5 Nov 2026. */
 :root {
-  --bg: #f4f6f6;
+  --bg: #effae3;
   --card: #ffffff;
   --ink: #16242a;
   --muted: #5b6b70;
   --line: #dde3e4;
-  --brand: #0f5257;
+  --brand: #699838;
   --brand-ink: #ffffff;
   --overdue: #b3261e;
   --today: #8a5a00;
-  --p0: #b3261e;
-  --p1: #0f5257;
-  --p2: #3d6f8f;
-  --p3: #6b7a80;
+  --p0: #b3261e; --p0-ink: #ffffff;
+  --p1: #699838; --p1-ink: #ffffff;
+  --p2: #3d6f8f; --p2-ink: #ffffff;
+  --p3: #6b7a80; --p3-ink: #ffffff;
   --radius: 14px;
 }
 @media (prefers-color-scheme: dark) {
   :root {
-    --bg: #0e1416; --card: #182124; --ink: #e6eef0; --muted: #9aabb0; --line: #2a3639;
-    --brand: #4fb3b9; --brand-ink: #062326; --overdue: #ff8a80; --today: #f2c46b;
-    --p0: #ff8a80; --p1: #4fb3b9; --p2: #8fb8d6; --p3: #9aabb0;
+    --bg: #0e1416; --card: #253338; --ink: #e6eef0; --muted: #9aabb0; --line: #2a3639;
+    --brand: #44a5aa; --brand-ink: #ffffff; --overdue: #ff8a80; --today: #f2c46b;
+    --p0: #ff8a80; --p0-ink: #10202a;
+    --p1: #44a5aa; --p1-ink: #ffffff;
+    --p2: #8fb8d6; --p2-ink: #10202a;
+    --p3: #9aabb0; --p3-ink: #10202a;
   }
 }
 * { box-sizing: border-box; }
@@ -56,9 +60,10 @@ main { padding: 12px 14px calc(24px + env(safe-area-inset-bottom)); max-width: 7
 .task .thing { font-size: 1.02rem; overflow-wrap: anywhere; }
 .task .meta { display: flex; flex-wrap: wrap; gap: 6px 10px; margin-top: 6px; color: var(--muted); font-size: .85rem; }
 .pill { display: inline-block; padding: 1px 8px; border-radius: 999px; font-weight: 700; font-size: .78rem;
-  color: #fff; background: var(--p3); }
-.pill.P0 { background: var(--p0); } .pill.P1 { background: var(--p1); } .pill.P2 { background: var(--p2); }
-@media (prefers-color-scheme: dark) { .pill { color: #0e1416; } }
+  color: var(--p3-ink); background: var(--p3); }
+.pill.P0 { background: var(--p0); color: var(--p0-ink); }
+.pill.P1 { background: var(--p1); color: var(--p1-ink); }
+.pill.P2 { background: var(--p2); color: var(--p2-ink); }
 .due.overdue { color: var(--overdue); font-weight: 600; }
 .due.today { color: var(--today); font-weight: 600; }
 .notes { margin-top: 6px; color: var(--muted); font-size: .85rem; white-space: pre-wrap; overflow-wrap: anywhere; }
