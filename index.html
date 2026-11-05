@@ -7,6 +7,10 @@
   <meta name="theme-color" content="#182124">
   <link rel="manifest" href="manifest.webmanifest">
   <link rel="icon" href="icon-192.png">
+  <script>
+    // Light/dark choice made in the app (More menu), applied before the page draws.
+    try { var th = localStorage.getItem('todo.theme'); if (th === 'light' || th === 'dark') document.documentElement.setAttribute('data-theme', th); } catch (e) {}
+  </script>
   <link rel="stylesheet" href="app.css">
 </head>
 <body>
@@ -107,6 +111,12 @@
   <dialog id="menuDialog">
     <form method="dialog">
       <h2>More</h2>
+      <h3>Appearance</h3>
+      <div class="theme-pick" role="group" aria-label="Appearance">
+        <button type="button" data-theme-choice="auto">Follow phone</button>
+        <button type="button" data-theme-choice="light">Light</button>
+        <button type="button" data-theme-choice="dark">Dark</button>
+      </div>
       <button type="button" id="clearDoneBtn" class="btn wide">Clear done</button>
       <p class="muted">Moves every task marked Z-Done in the sheet to the Done tab, the same as asking Claude to "clear done".</p>
       <div class="actions"><button type="submit" class="btn">Close</button></div>

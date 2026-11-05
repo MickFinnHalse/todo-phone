@@ -466,7 +466,25 @@
   $('sortBtn').addEventListener('click', openSortDialog);
   $('sortForm').addEventListener('submit', applyCustomSort);
   $('sortCancel').addEventListener('click', function () { $('sortDialog').close(); });
-  $('menuBtn').addEventListener('click', function () { $('menuDialog').showModal(); });
+  $('menuBtn').addEventListener('click', function () { markTheme(); $('menuDialog').showModal(); });
+
+  // ---------- appearance: follow the phone, or force light/dark on this phone ----------
+  function currentTheme() { try { return localStorage.getItem('todo.theme') || 'auto'; } catch (e) { return 'auto'; } }
+  function markTheme() {
+    var now = currentTheme();
+    Array.prototype.forEach.call(document.querySelectorAll('[data-theme-choice]'), function (b) {
+      b.setAttribute('aria-pressed', String(b.getAttribute('data-theme-choice') === now));
+    });
+  }
+  Array.prototype.forEach.call(document.querySelectorAll('[data-theme-choice]'), function (b) {
+    b.addEventListener('click', function () {
+      var choice = b.getAttribute('data-theme-choice');
+      try { if (choice === 'auto') localStorage.removeItem('todo.theme'); else localStorage.setItem('todo.theme', choice); } catch (e) { /* still applies for this visit */ }
+      if (choice === 'auto') document.documentElement.removeAttribute('data-theme');
+      else document.documentElement.setAttribute('data-theme', choice);
+      markTheme();
+    });
+  });
   $('clearDoneBtn').addEventListener('click', clearDone);
   document.addEventListener('visibilitychange', function () {
     if (document.visibilityState === 'visible' && !$('list').hidden && Date.now() - lastLoad > STALE_MS &&
