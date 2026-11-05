@@ -1,0 +1,43 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+  <title>To-do</title>
+  <meta name="theme-color" content="#0f5257">
+  <link rel="manifest" href="manifest.webmanifest">
+  <link rel="icon" href="icon-192.png">
+  <link rel="stylesheet" href="app.css">
+</head>
+<body>
+  <header class="bar">
+    <button id="who" class="who" type="button" aria-label="Change person">…</button>
+    <h1>To-do</h1>
+    <button id="refresh" class="icon-btn" type="button" aria-label="Refresh">
+      <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M17.65 6.35A7.95 7.95 0 0 0 12 4a8 8 0 1 0 7.75 10h-2.08A6 6 0 1 1 12 6c1.66 0 3.14.69 4.22 1.78L13 11h7V4l-2.35 2.35z"/></svg>
+    </button>
+  </header>
+
+  <div id="notice" class="notice" hidden></div>
+
+  <main id="main">
+    <section id="setup" class="panel" hidden>
+      <h2>Set up this phone</h2>
+      <p>Open the setup link you were sent, on this phone. It connects the app to the to-do list once, and the phone remembers it.</p>
+    </section>
+
+    <section id="picker" class="panel" hidden>
+      <h2>Who are you?</h2>
+      <p class="muted">This only chooses whose tasks you see on this phone. It doesn't change anyone else's view or the sheet.</p>
+      <div id="people" class="people"></div>
+    </section>
+
+    <section id="list" hidden>
+      <p id="summary" class="summary"></p>
+      <ul id="tasks" class="tasks"></ul>
+    </section>
+  </main>
+
+  <script src="app.js"></script>
+</body>
+</html>
