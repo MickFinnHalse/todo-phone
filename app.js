@@ -26,7 +26,8 @@
   var SORT_FIELDS = [
     { key: 'p', label: 'Priority' }, { key: 'due', label: 'Due date' }, { key: 'urgency', label: 'Urgency' },
     { key: 'order', label: 'Order' }, { key: 'status', label: 'Status' }, { key: 'category', label: 'Category' },
-    { key: 'project', label: 'Project' }, { key: 'person', label: 'Person' }, { key: 'thing', label: 'Task text' }
+    { key: 'project', label: 'Project' }, { key: 'subcategory', label: 'SubCategory' }, { key: 'person', label: 'Person' },
+    { key: 'roi', label: 'ROI' }, { key: 'time', label: 'Time' }, { key: 'thing', label: 'Task text' }
   ];
   var PRESETS = [
     { label: 'Priority, then due date', specs: [{ key: 'p' }, { key: 'due' }] },
@@ -169,6 +170,11 @@
       if (ua !== ub) return ua - ub;
     }
     if (key === 'order' && !isNaN(+a) && !isNaN(+b)) return +a - +b;
+    if (key === 'time') {             // "h:mm" → minutes, so 10:00 sorts after 2:30
+      var mins = function (s) { var m = String(s).match(/^(\d+):(\d{2})$/); return m ? +m[1] * 60 + +m[2] : NaN; };
+      var ta = mins(a), tb = mins(b);
+      if (!isNaN(ta) && !isNaN(tb)) return ta - tb;
+    }
     return String(a).localeCompare(String(b), undefined, { sensitivity: 'base', numeric: true });
   }
   function sortTasks(tasks) {
@@ -237,10 +243,12 @@
       var due = dueLabel(t.due, data.today);
       if (due) meta.appendChild(el('span', 'due ' + due.cls, due.text));
       if (t.urgency) meta.appendChild(el('span', '', t.urgency));
+      if (t.order !== '' && t.order !== undefined) meta.appendChild(el('span', '', 'Order ' + t.order));
       if (t.category) meta.appendChild(el('span', 'cat', t.category));
       if (t.project) meta.appendChild(el('span', '', t.project));
       if (t.subcategory) meta.appendChild(el('span', '', t.subcategory));
       if (t.time) meta.appendChild(el('span', '', t.time));
+      if (t.roi) meta.appendChild(el('span', '', 'ROI ' + t.roi));
       if (t.person && t.person.toLowerCase() !== person.toLowerCase()) meta.appendChild(el('span', '', t.person));
       if (t.status && t.status !== 'A_Not started') meta.appendChild(el('span', '', t.status.replace(/^[A-Z]_/, '')));
       body.appendChild(meta);
@@ -306,6 +314,9 @@
     fillSelect($('fSubcategory'), v.subcategory || [], t ? t.subcategory : '', '—');
     fillSelect($('fStatus'), v.status || [], t ? t.status : '', '—');
     $('fTime').value = t ? (t.time || '') : '';
+    $('fOrder').value = t ? (t.order || '') : '';
+    fillSelect($('fRoi'), v.roi || ['$', '$$', '$$$', 'Unknown'], t ? t.roi : '', t ? '—' : 'Default ($)');
+    $('fTimeToRoi').value = t ? (t.time_to_roi || '') : '';
     $('fNotes').value = t ? (t.notes || '') : '';
     $('taskError').hidden = true;
     $('taskSave').disabled = false;
@@ -318,7 +329,8 @@
       thing: $('fThing').value.trim(), p: $('fP').value, due: $('fDue').value,
       urgency: $('fUrgency').value, person: $('fPerson').value, notes: $('fNotes').value.trim(),
       category: $('fCategory').value, project: $('fProject').value, subcategory: $('fSubcategory').value,
-      status: $('fStatus').value, time: $('fTime').value.trim()
+      status: $('fStatus').value, time: $('fTime').value.trim(), order: $('fOrder').value.trim(),
+      roi: $('fRoi').value, time_to_roi: $('fTimeToRoi').value.trim()
     };
   }
 
