@@ -237,8 +237,10 @@
       var due = dueLabel(t.due, data.today);
       if (due) meta.appendChild(el('span', 'due ' + due.cls, due.text));
       if (t.urgency) meta.appendChild(el('span', '', t.urgency));
+      if (t.category) meta.appendChild(el('span', 'cat', t.category));
       if (t.project) meta.appendChild(el('span', '', t.project));
-      else if (t.category) meta.appendChild(el('span', '', t.category));
+      if (t.subcategory) meta.appendChild(el('span', '', t.subcategory));
+      if (t.time) meta.appendChild(el('span', '', t.time));
       if (t.person && t.person.toLowerCase() !== person.toLowerCase()) meta.appendChild(el('span', '', t.person));
       if (t.status && t.status !== 'A_Not started') meta.appendChild(el('span', '', t.status.replace(/^[A-Z]_/, '')));
       body.appendChild(meta);
@@ -281,6 +283,13 @@
   }
 
   function openTaskDialog(t) {
+    if (!vocab()) {                  // dropdown lists not saved yet: fetch them first
+      spin(true);
+      loadVocab().then(function () { openTaskDialog(t); }, function () {
+        toast('Couldn\'t load the dropdown lists. Check your connection and try again.', true);
+      }).finally(function () { spin(false); });
+      return;
+    }
     editing = t || null;
     var v = vocab() || {};
     var people = (v.person || [me()]).filter(function (p) { return p !== '?'; });
@@ -291,6 +300,12 @@
     fillSelect($('fUrgency'), v.urgency || URGENCY_ORDER, t ? t.urgency : '', '—');
     // A phone writes one person per task; a shared task (two names) keeps its value unless changed.
     fillSelect($('fPerson'), people, t ? t.person : me());
+    // New tasks may leave Category blank: the server then guesses it from your history.
+    fillSelect($('fCategory'), (v.category || []).filter(function (c) { return c !== 'UNSORTED'; }), t ? t.category : '', t ? '—' : 'Guess for me');
+    fillSelect($('fProject'), (v.project || []).filter(function (c) { return c !== 'UNSORTED'; }), t ? t.project : '', '—');
+    fillSelect($('fSubcategory'), v.subcategory || [], t ? t.subcategory : '', '—');
+    fillSelect($('fStatus'), v.status || [], t ? t.status : '', '—');
+    $('fTime').value = t ? (t.time || '') : '';
     $('fNotes').value = t ? (t.notes || '') : '';
     $('taskError').hidden = true;
     $('taskSave').disabled = false;
@@ -301,7 +316,9 @@
   function taskFormValues() {
     return {
       thing: $('fThing').value.trim(), p: $('fP').value, due: $('fDue').value,
-      urgency: $('fUrgency').value, person: $('fPerson').value, notes: $('fNotes').value.trim()
+      urgency: $('fUrgency').value, person: $('fPerson').value, notes: $('fNotes').value.trim(),
+      category: $('fCategory').value, project: $('fProject').value, subcategory: $('fSubcategory').value,
+      status: $('fStatus').value, time: $('fTime').value.trim()
     };
   }
 
@@ -395,7 +412,7 @@
     $('who').textContent = person;
     var cached = localStorage.getItem(LS.cache(person));
     if (cached && $('list').hidden) { try { renderList(JSON.parse(cached), true); } catch (e) { /* ignore */ } }
-    if (!vocab()) loadVocab().catch(function () { /* the list still works */ });
+    loadVocab().catch(function () { /* the list still works; dropdowns use the saved copy */ });
     if (loading) return;
     loading = true; spin(true);
     api('list', { person: person }).then(function (data) {
