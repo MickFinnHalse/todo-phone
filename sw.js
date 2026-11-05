@@ -4,8 +4,8 @@
  * app keeps its own last-seen list in localStorage and always asks the server
  * first. Bump VERSION whenever any shell file changes.
  */
-var VERSION = 'todo-shell-v7';
-var SHELL = ['./', 'index.html', 'app.js', 'app.css', 'manifest.webmanifest', 'icon-192.png', 'icon-512.png'];
+var VERSION = 'todo-shell-v8';
+var SHELL = ['./', 'index.html', 'app.js', 'qrcode.js', 'app.css', 'manifest.webmanifest', 'icon-192.png', 'icon-512.png'];
 
 self.addEventListener('install', function (e) {
   e.waitUntil(caches.open(VERSION).then(function (c) { return c.addAll(SHELL); }).then(function () { return self.skipWaiting(); }));

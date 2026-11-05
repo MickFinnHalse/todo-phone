@@ -73,6 +73,48 @@
     loadList();
   }
 
+  // ---------- set up another phone: the same link the editor's phoneAppSetupLink gives ----------
+  function setupLinkFromThisPhone() {
+    var u = localStorage.getItem(LS.api), k = localStorage.getItem(LS.key);
+    if (!u || !k) return '';
+    var b64 = btoa(JSON.stringify({ u: u, k: k })).replace(/\+/g, '-').replace(/\//g, '_').replace(/=+$/, '');
+    return location.origin + location.pathname + '#setup=' + b64;
+  }
+
+  /** Draws the QR code on this phone (qrcode.js, MIT): the link never goes to another site. */
+  function qrSvg(text) {
+    var qr = qrcode(0, 'M');
+    qr.addData(text);
+    qr.make();
+    var n = qr.getModuleCount(), quiet = 4, size = n + quiet * 2, d = '';
+    for (var r = 0; r < n; r++) for (var c = 0; c < n; c++) {
+      if (qr.isDark(r, c)) d += 'M' + (c + quiet) + ' ' + (r + quiet) + 'h1v1h-1z';
+    }
+    return '<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 ' + size + ' ' + size + '" shape-rendering="crispEdges">' +
+      '<rect width="' + size + '" height="' + size + '" fill="#fff"/><path d="' + d + '" fill="#000"/></svg>';
+  }
+
+  function openShareDialog() {
+    var link = setupLinkFromThisPhone();
+    if (!link) { toast('This phone isn\'t set up, so it has no link to share.', true); return; }
+    $('menuDialog').close();
+    try { $('qrBox').innerHTML = qrSvg(link); } catch (e) { $('qrBox').textContent = 'Couldn\'t draw the code. Use Share link instead.'; }
+    $('shareDialog').showModal();
+  }
+
+  function shareSetupLink() {
+    var link = setupLinkFromThisPhone();
+    if (navigator.share) {
+      navigator.share({ title: 'To-do app setup', text: 'Tap this link on your phone to set up the To-do app:', url: link })
+        .catch(function (e) { if (e && e.name !== 'AbortError') toast('Couldn\'t open sharing. Try again.', true); });
+    } else if (navigator.clipboard) {
+      navigator.clipboard.writeText(link).then(function () { toast('Link copied. Paste it into a private message.', false); },
+        function () { toast('Couldn\'t copy the link.', true); });
+    } else {
+      toast('This phone can\'t share links from here.', true);
+    }
+  }
+
   // ---------- API ----------
   function api(action, params) {
     var url = localStorage.getItem(LS.api), key = localStorage.getItem(LS.key);
@@ -513,6 +555,8 @@
     });
   });
   $('clearDoneBtn').addEventListener('click', clearDone);
+  $('shareSetupBtn').addEventListener('click', openShareDialog);
+  $('shareLinkBtn').addEventListener('click', shareSetupLink);
   $('setupForm').addEventListener('submit', function (ev) { ev.preventDefault(); pasteSetup(); });
   document.addEventListener('visibilitychange', function () {
     if (document.visibilityState === 'visible' && !$('list').hidden && Date.now() - lastLoad > STALE_MS &&

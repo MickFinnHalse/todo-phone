@@ -141,3 +141,6 @@ dialog .row { display: grid; grid-template-columns: 1fr 1fr; gap: 10px; }
 .setup-form { display: flex; gap: 8px; margin-top: 8px; }
 .setup-form input { flex: 1; min-width: 0; padding: 10px; border: 1px solid var(--line); border-radius: 10px;
   background: var(--card); color: var(--ink); font: inherit; font-size: 1rem; }
+
+.qr-box { background: #fff; border-radius: 12px; padding: 8px; margin: 10px auto; width: min(100%, 300px); }
+.qr-box svg { display: block; width: 100%; height: auto; }

@@ -126,12 +126,29 @@
         <button type="button" data-theme-choice="light">Light</button>
         <button type="button" data-theme-choice="dark">Dark</button>
       </div>
+      <button type="button" id="shareSetupBtn" class="btn wide">Set up another phone</button>
       <button type="button" id="clearDoneBtn" class="btn wide">Clear done</button>
       <p class="muted">Moves every task marked Z-Done in the sheet to the Done tab, the same as asking Claude to "clear done".</p>
       <div class="actions"><button type="submit" class="btn">Close</button></div>
     </form>
   </dialog>
 
+  <!-- Set up another phone: QR code (in person) or share the link (not in person) -->
+  <dialog id="shareDialog">
+    <form method="dialog">
+      <h2>Set up another phone</h2>
+      <p class="muted"><b>With you:</b> they point their phone camera at this code and tap the link it shows.</p>
+      <div id="qrBox" class="qr-box" aria-label="Setup QR code"></div>
+      <p class="muted"><b>Not with you:</b> tap Share link and send it to them privately. They tap the link in the message.</p>
+      <p class="muted">Anyone with this link can see and change the to-do list, so only send it to people you trust.</p>
+      <div class="actions">
+        <button type="button" id="shareLinkBtn" class="btn primary">Share link</button>
+        <button type="submit" class="btn">Close</button>
+      </div>
+    </form>
+  </dialog>
+
+  <script src="qrcode.js"></script>
   <script src="app.js"></script>
 </body>
 </html>
