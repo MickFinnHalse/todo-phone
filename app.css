@@ -63,3 +63,49 @@ main { padding: 12px 14px calc(24px + env(safe-area-inset-bottom)); max-width: 7
 .due.today { color: var(--today); font-weight: 600; }
 .notes { margin-top: 6px; color: var(--muted); font-size: .85rem; white-space: pre-wrap; overflow-wrap: anywhere; }
 .empty { text-align: center; color: var(--muted); padding: 40px 10px; }
+
+/* ---------- Phase 2: actions ---------- */
+.bar { gap: 4px; }
+.task { display: flex; gap: 12px; align-items: flex-start; padding: 12px 12px 12px 10px; }
+.task .body { flex: 1; min-width: 0; cursor: pointer; }
+.tick { flex: none; width: 44px; height: 44px; margin: -6px 0 -6px -4px; border: 0; background: transparent;
+  display: grid; place-items: center; border-radius: 22px; }
+.tick span { width: 24px; height: 24px; border-radius: 50%; border: 2px solid var(--muted); display: grid; place-items: center; }
+.tick svg { width: 16px; height: 16px; fill: #fff; visibility: hidden; }
+.task.pending .tick span { background: var(--brand); border-color: var(--brand); }
+.task.pending .tick svg { visibility: visible; }
+.task.pending .thing { text-decoration: line-through; color: var(--muted); }
+.task .undo { display: none; margin-top: 6px; font-size: .85rem; color: var(--brand); font-weight: 600; }
+.task.pending .undo { display: block; }
+.task.saving { opacity: .55; pointer-events: none; }
+
+.fab { position: fixed; right: 18px; bottom: calc(20px + env(safe-area-inset-bottom)); width: 60px; height: 60px;
+  border: 0; border-radius: 30px; background: var(--brand); color: var(--brand-ink);
+  box-shadow: 0 4px 14px rgba(0,0,0,.25); display: grid; place-items: center; z-index: 3; }
+.fab svg { width: 30px; height: 30px; fill: currentColor; }
+main { padding-bottom: calc(96px + env(safe-area-inset-bottom)); }
+
+.toast { position: fixed; left: 14px; right: 90px; bottom: calc(26px + env(safe-area-inset-bottom)); z-index: 4;
+  padding: 12px 14px; border-radius: 12px; background: #16242a; color: #fff; font-size: .92rem;
+  box-shadow: 0 4px 14px rgba(0,0,0,.25); }
+.toast.error { background: #7a1410; }
+
+dialog { width: min(560px, calc(100vw - 24px)); max-height: calc(100vh - 40px); border: 0; border-radius: 18px;
+  padding: 18px 16px; background: var(--card); color: var(--ink); }
+dialog::backdrop { background: rgba(0,0,0,.45); }
+dialog h2 { margin: 0 0 12px; font-size: 1.2rem; }
+dialog h3 { margin: 16px 0 8px; font-size: 1rem; }
+dialog label { display: block; margin: 0 0 12px; font-size: .85rem; color: var(--muted); font-weight: 600; }
+dialog textarea, dialog select, dialog input { display: block; width: 100%; margin-top: 4px; padding: 10px;
+  border: 1px solid var(--line); border-radius: 10px; background: var(--bg); color: var(--ink); font: inherit; font-size: 1rem; }
+dialog .row { display: grid; grid-template-columns: 1fr 1fr; gap: 10px; }
+.actions { display: flex; justify-content: flex-end; gap: 10px; margin-top: 8px; }
+.btn { min-height: 44px; padding: 0 18px; border: 1px solid var(--line); border-radius: 22px; background: var(--card); font-weight: 600; }
+.btn.primary { background: var(--brand); color: var(--brand-ink); border-color: var(--brand); }
+.btn.wide { width: 100%; margin-bottom: 8px; }
+.btn:disabled { opacity: .5; }
+.form-error { color: var(--overdue); font-size: .9rem; margin: 0 0 8px; }
+.presets { display: grid; gap: 8px; }
+.presets button { text-align: left; min-height: 48px; padding: 8px 14px; border: 1px solid var(--line); border-radius: 12px; background: var(--bg); font-weight: 600; }
+.presets button[aria-pressed="true"] { border-color: var(--brand); box-shadow: inset 0 0 0 2px var(--brand); }
+.custom .row { display: grid; grid-template-columns: 1fr 120px; gap: 8px; margin-bottom: 8px; }
