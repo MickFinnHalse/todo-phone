@@ -90,6 +90,12 @@
         <label>ROI <select id="fRoi"></select></label>
         <label>Time to ROI <input id="fTimeToRoi" type="text" placeholder="—"></label>
       </div>
+      <div class="deps-field">
+        <span class="field-label">Waits on</span>
+        <ul id="fDeps" class="chips"></ul>
+        <select id="fDepAdd" aria-label="Add a task this one waits on"></select>
+        <p class="muted small">It shows as waiting, at the bottom of the list, until these are done.</p>
+      </div>
       <label>Notes
         <textarea id="fNotes" rows="2"></textarea>
       </label>
@@ -107,6 +113,7 @@
       <h2>Sort</h2>
       <p class="muted">Only changes the order on this phone. The sheet and everyone else's order stay as they are.</p>
       <div id="presets" class="presets"></div>
+      <label class="check"><input type="checkbox" id="hideWaiting"> Hide tasks that are waiting on another task</label>
       <h3>Custom</h3>
       <div id="custom" class="custom"></div>
       <div class="actions">

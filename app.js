@@ -15,7 +15,7 @@
   'use strict';
 
   var LS = {
-    api: 'todo.api', key: 'todo.key', person: 'todo.person', vocab: 'todo.vocab', sort: 'todo.sort',
+    api: 'todo.api', key: 'todo.key', person: 'todo.person', vocab: 'todo.vocab', sort: 'todo.sort', hideWaiting: 'todo.hideWaiting',
     cache: function (p) { return 'todo.cache.' + p.toLowerCase(); }
   };
   var P_FALLBACK = ['P0', 'P1', 'P2', 'P3', 'P4', 'Y-Cadence'];
@@ -37,6 +37,7 @@
   ];
 
   var lastLoad = 0, loading = false, current = null, editing = null;
+  var depChoice = [];         // the edit box's "Waits on" list: [{id, thing}]
   var pendingDone = {};       // id -> timer for ticked tasks still inside the undo window
 
   var $ = function (id) { return document.getElementById(id); };
@@ -139,7 +140,8 @@
     return api(action, Object.assign({ me: me() }, params)).then(function (data) {
       saveList(data.list);
       renderList(data.list, false);
-      toast(okText || data.message, false);
+      var freed = (data.freed || '').replace(/ \([0-9a-z]{4,8}\)/g, '');   // ids mean nothing on a phone
+      toast((okText || data.message) + (freed ? ' · ' + freed : ''), false);
       return data;
     }).catch(function (e) {
       toast(e.code === 'network'
@@ -270,15 +272,23 @@
     var person = me();
     var ul = $('tasks');
     ul.textContent = '';
-    var tasks = sortTasks(data.tasks || []);
-    var overdue = tasks.filter(function (t) { return t.due && t.due < data.today; }).length;
-    $('summary').textContent = tasks.length + ' open task' + (tasks.length === 1 ? '' : 's') +
+    // Tasks waiting on another open task go after the ready ones (owner's choice, 17 Nov 2026).
+    var all = sortTasks(data.tasks || []);
+    var isWaiting = function (t) { return !!(t.waiting && t.waiting.length); };
+    var ready = all.filter(function (t) { return !isWaiting(t); });
+    var waiting = all.filter(isWaiting);
+    var hide = hideWaiting();
+    var tasks = hide ? ready : ready.concat(waiting);
+    var overdue = all.filter(function (t) { return t.due && t.due < data.today; }).length;
+    $('summary').textContent = all.length + ' open task' + (all.length === 1 ? '' : 's') +
+      (waiting.length ? ' · ' + waiting.length + ' waiting' + (hide ? ' (hidden)' : '') : '') +
       (overdue ? ' · ' + overdue + ' overdue' : '') + ' · sorted by ' + sortLabel().toLowerCase() +
       (fromCache ? ' · saved copy from ' + new Date(data.at).toLocaleString(undefined, { weekday: 'short', hour: '2-digit', minute: '2-digit' }) : '');
-    if (!tasks.length) ul.appendChild(el('li', 'empty', 'Nothing on your list. Tap + to add a task.'));
+    if (!tasks.length) ul.appendChild(el('li', 'empty', all.length ? 'Everything on your list is waiting on another task.' : 'Nothing on your list. Tap + to add a task.'));
 
-    tasks.forEach(function (t) {
-      var li = el('li', 'task');
+    tasks.forEach(function (t, i) {
+      if (!hide && waiting.length && i === ready.length) ul.appendChild(el('li', 'divider', 'Waiting on another task'));
+      var li = el('li', 'task' + (isWaiting(t) ? ' waiting' : ''));
       li.dataset.id = t.id;
       if (pendingDone[t.id]) li.classList.add('pending');
 
@@ -309,6 +319,9 @@
       if (t.person && t.person.toLowerCase() !== person.toLowerCase()) meta.appendChild(el('span', '', t.person));
       if (t.status && t.status !== 'A_Not started') meta.appendChild(el('span', '', t.status.replace(/^[A-Z]_/, '')));
       body.appendChild(meta);
+      var names = function (list) { return list.map(function (x) { return x.thing; }).join(' · '); };
+      if (isWaiting(t)) body.appendChild(el('div', 'dep waiting-on', 'Waiting on: ' + names(t.waiting)));
+      if (t.blocking && t.blocking.length) body.appendChild(el('div', 'dep', 'Holding up: ' + names(t.blocking)));
       if (t.notes) body.appendChild(el('div', 'notes', t.notes));
       body.appendChild(el('div', 'undo', 'Marked done. Tap the tick again to undo.'));
       body.addEventListener('click', function () { if (!pendingDone[t.id]) openTaskDialog(t); });
@@ -375,11 +388,48 @@
     fillSelect($('fRoi'), v.roi || ['$', '$$', '$$$', 'Unknown'], t ? t.roi : '', t ? '—' : 'Default ($)');
     $('fTimeToRoi').value = t ? (t.time_to_roi || '') : '';
     $('fNotes').value = t ? (t.notes || '') : '';
+    depChoice = t && t.dependsOn ? t.dependsOn.slice() : [];
+    renderDeps();
     $('taskError').hidden = true;
     $('taskSave').disabled = false;
     $('taskDialog').showModal();
     if (!t) $('fThing').focus();
   }
+
+  // ---------- "Waits on": the tasks this one can't be done before ----------
+  function renderDeps() {
+    var ul = $('fDeps'), selfId = editing ? editing.id : '';
+    ul.textContent = '';
+    depChoice.forEach(function (d, i) {
+      var li = el('li', 'chip');
+      li.appendChild(el('span', '', d.thing));
+      var x = el('button', '', '×');
+      x.type = 'button';
+      x.setAttribute('aria-label', 'Stop waiting on: ' + d.thing);
+      x.addEventListener('click', function () { depChoice.splice(i, 1); renderDeps(); });
+      li.appendChild(x);
+      ul.appendChild(li);
+    });
+    var sel = $('fDepAdd'), chosen = depChoice.map(function (d) { return d.id; });
+    sel.textContent = '';
+    var o0 = el('option', '', depChoice.length ? 'Add another…' : 'Nothing. Pick a task to wait on…'); o0.value = ''; sel.appendChild(o0);
+    var open = ((current && current.open) || []).filter(function (o) { return o.id && o.id !== selfId && chosen.indexOf(o.id) === -1; })
+      .sort(function (a, b) { return a.thing.localeCompare(b.thing, undefined, { sensitivity: 'base' }); });
+    open.forEach(function (o) {
+      var opt = el('option', '', short(o.thing) + (o.person && o.person.toLowerCase() !== me().toLowerCase() ? ' (' + o.person + ')' : ''));
+      opt.value = o.id;
+      sel.appendChild(opt);
+    });
+    sel.value = '';
+  }
+  function addDep() {
+    var id = $('fDepAdd').value;
+    if (!id) return;
+    var o = ((current && current.open) || []).filter(function (x) { return x.id === id; })[0];
+    if (o) depChoice.push({ id: o.id, thing: o.thing });
+    renderDeps();
+  }
+  function depIds(list) { return (list || []).map(function (d) { return d.id; }).join(','); }
 
   function taskFormValues() {
     return {
@@ -398,6 +448,7 @@
     var params = {}, action, okText;
     if (!editing) {
       Object.keys(f).forEach(function (k) { if (f[k]) params[k] = f[k]; });
+      if (depChoice.length) params.depends_on = depIds(depChoice);
       action = 'add'; okText = 'Added: ' + short(f.thing);
     } else {
       var cleared = [];
@@ -409,6 +460,10 @@
       if (cleared.length) {
         err.textContent = 'The phone can\'t empty a field yet (' + cleared.join(', ') + '). Change it in the sheet, or pick a value.';
         err.hidden = false; return;
+      }
+      if (depIds(depChoice) !== depIds(editing.dependsOn)) {
+        if (depChoice.length) params.depends_on = depIds(depChoice);
+        else params.clear = 'depends_on';
       }
       if (!Object.keys(params).length) { $('taskDialog').close(); return; }
       params.id = editing.id;
@@ -445,8 +500,10 @@
       row.appendChild(f); row.appendChild(d);
       custom.appendChild(row);
     }
+    $('hideWaiting').checked = hideWaiting();
     $('sortDialog').showModal();
   }
+  function hideWaiting() { try { return localStorage.getItem(LS.hideWaiting) === '1'; } catch (e) { return false; } }
   function applySort(specs) {
     localStorage.setItem(LS.sort, JSON.stringify(specs));
     $('sortDialog').close();
@@ -535,6 +592,11 @@
   $('sortBtn').addEventListener('click', openSortDialog);
   $('sortForm').addEventListener('submit', applyCustomSort);
   $('sortCancel').addEventListener('click', function () { $('sortDialog').close(); });
+  $('hideWaiting').addEventListener('change', function () {
+    try { localStorage.setItem(LS.hideWaiting, $('hideWaiting').checked ? '1' : '0'); } catch (e) { /* this visit only */ }
+    if (current) renderList(current, false);
+  });
+  $('fDepAdd').addEventListener('change', addDep);
   $('menuBtn').addEventListener('click', function () { markTheme(); $('menuDialog').showModal(); });
 
   // ---------- appearance: follow the phone, or force light/dark on this phone ----------
