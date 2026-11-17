@@ -162,3 +162,13 @@ dialog .row { display: grid; grid-template-columns: 1fr 1fr; gap: 10px; }
 .muted.small { font-size: .8rem; margin: 4px 0 0; }
 dialog label.check { display: flex; align-items: center; gap: 10px; margin: 14px 0 0; font-weight: 600; color: var(--ink); font-size: .95rem; }
 dialog label.check input { width: 22px; height: 22px; margin: 0; flex: none; }
+
+/* ---------- Sub-tasks (17 Nov 2026) ---------- */
+.task.sub { position: relative; }
+.task.sub.depth-1 { margin-left: 22px; }
+.task.sub.depth-2 { margin-left: 44px; }
+.task.sub.depth-3 { margin-left: 66px; }
+.task.sub::before { content: ""; position: absolute; left: -14px; top: 0; bottom: 50%; width: 10px;
+  border-left: 2px solid var(--line); border-bottom: 2px solid var(--line); border-bottom-left-radius: 8px; }
+.progress { padding: 1px 8px; border-radius: 999px; border: 1px solid var(--line); font-weight: 600; }
+.progress.all { border-color: var(--brand); color: var(--brand); }

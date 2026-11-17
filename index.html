@@ -96,10 +96,14 @@
         <select id="fDepAdd" aria-label="Add a task this one waits on"></select>
         <p class="muted small">It shows as waiting, at the bottom of the list, until these are done.</p>
       </div>
+      <label>Part of (makes this a sub-task)
+        <select id="fParent"></select>
+      </label>
       <label>Notes
         <textarea id="fNotes" rows="2"></textarea>
       </label>
       <p id="taskError" class="form-error" hidden></p>
+      <button type="button" id="addSubBtn" class="btn wide">Add a sub-task to this</button>
       <div class="actions">
         <button type="button" id="taskCancel" class="btn">Cancel</button>
         <button type="submit" id="taskSave" class="btn primary">Save</button>

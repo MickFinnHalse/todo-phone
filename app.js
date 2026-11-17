@@ -275,10 +275,27 @@
     // Tasks waiting on another open task go after the ready ones (owner's choice, 17 Nov 2026).
     var all = sortTasks(data.tasks || []);
     var isWaiting = function (t) { return !!(t.waiting && t.waiting.length); };
-    var ready = all.filter(function (t) { return !isWaiting(t); });
-    var waiting = all.filter(isWaiting);
     var hide = hideWaiting();
-    var tasks = hide ? ready : ready.concat(waiting);
+    // Sub-tasks sit indented under their parent when the parent is on this list.
+    var byId = {}, kidsOf = {}, tops = [];
+    all.forEach(function (t) { byId[t.id] = t; });
+    all.forEach(function (t) {
+      var pid = t.parentOf && t.parentOf.id;
+      if (pid && pid !== t.id && byId[pid]) (kidsOf[pid] = kidsOf[pid] || []).push(t);
+      else tops.push(t);
+    });
+    var items = [], seen = {};
+    var walk = function (t, depth, section, hidden) {
+      if (seen[t.id]) return;
+      seen[t.id] = true;
+      if (!hidden) items.push({ t: t, depth: depth, section: section });
+      (kidsOf[t.id] || []).forEach(function (k) { walk(k, depth + 1, section, hidden); });
+    };
+    tops.filter(function (t) { return !isWaiting(t); }).forEach(function (t) { walk(t, 0, 'ready', false); });
+    tops.filter(isWaiting).forEach(function (t) { walk(t, 0, 'waiting', hide); });
+    all.forEach(function (t) { if (!seen[t.id]) walk(t, 0, 'ready', false); });   // safety net: never lose a task
+    var waiting = all.filter(isWaiting);
+    var tasks = items.map(function (x) { return x.t; });
     var overdue = all.filter(function (t) { return t.due && t.due < data.today; }).length;
     $('summary').textContent = all.length + ' open task' + (all.length === 1 ? '' : 's') +
       (waiting.length ? ' · ' + waiting.length + ' waiting' + (hide ? ' (hidden)' : '') : '') +
@@ -286,9 +303,11 @@
       (fromCache ? ' · saved copy from ' + new Date(data.at).toLocaleString(undefined, { weekday: 'short', hour: '2-digit', minute: '2-digit' }) : '');
     if (!tasks.length) ul.appendChild(el('li', 'empty', all.length ? 'Everything on your list is waiting on another task.' : 'Nothing on your list. Tap + to add a task.'));
 
-    tasks.forEach(function (t, i) {
-      if (!hide && waiting.length && i === ready.length) ul.appendChild(el('li', 'divider', 'Waiting on another task'));
-      var li = el('li', 'task' + (isWaiting(t) ? ' waiting' : ''));
+    var dividerDone = false;
+    items.forEach(function (item) {
+      var t = item.t;
+      if (item.section === 'waiting' && !dividerDone) { ul.appendChild(el('li', 'divider', 'Waiting on another task')); dividerDone = true; }
+      var li = el('li', 'task' + (isWaiting(t) ? ' waiting' : '') + (item.depth ? ' sub depth-' + Math.min(item.depth, 3) : ''));
       li.dataset.id = t.id;
       if (pendingDone[t.id]) li.classList.add('pending');
 
@@ -307,6 +326,10 @@
       body.appendChild(el('div', 'thing', t.thing));
       var meta = el('div', 'meta');
       if (t.p) meta.appendChild(el('span', 'pill ' + t.p, t.p));
+      if (t.sub && t.sub.total) {
+        var allDone = !t.sub.open.length;
+        meta.appendChild(el('span', 'progress' + (allDone ? ' all' : ''), allDone ? (t.sub.total === 1 ? 'Sub-task done' : 'All ' + t.sub.total + ' sub-tasks done') : t.sub.done + ' of ' + t.sub.total + ' done'));
+      }
       var due = dueLabel(t.due, data.today);
       if (due) meta.appendChild(el('span', 'due ' + due.cls, due.text));
       if (t.urgency) meta.appendChild(el('span', '', t.urgency));
@@ -322,6 +345,7 @@
       var names = function (list) { return list.map(function (x) { return x.thing; }).join(' · '); };
       if (isWaiting(t)) body.appendChild(el('div', 'dep waiting-on', 'Waiting on: ' + names(t.waiting)));
       if (t.blocking && t.blocking.length) body.appendChild(el('div', 'dep', 'Holding up: ' + names(t.blocking)));
+      if (t.parentOf && !byId[t.parentOf.id]) body.appendChild(el('div', 'dep', 'Part of: ' + t.parentOf.thing + (t.parentOf.done ? ' (done)' : '')));
       if (t.notes) body.appendChild(el('div', 'notes', t.notes));
       body.appendChild(el('div', 'undo', 'Marked done. Tap the tick again to undo.'));
       body.addEventListener('click', function () { if (!pendingDone[t.id]) openTaskDialog(t); });
@@ -339,10 +363,20 @@
       li.classList.remove('pending');
       return;
     }
+    var mode = '';
+    var openKids = (t.sub && t.sub.open) ? t.sub.open.length : 0;
+    if (openKids) {
+      var s1 = openKids === 1 ? '' : 's';
+      if (confirm('"' + short(t.thing) + '" still has ' + openKids + ' open sub-task' + s1 + '.\n\nOK: tick ' + (openKids === 1 ? 'it' : 'them') + ' too.\nCancel: other choices.')) mode = 'complete';
+      else if (confirm('Tick only "' + short(t.thing) + '" and leave its sub-task' + s1 + ' open?')) mode = 'keep';
+      else return;
+    }
     li.classList.add('pending');
     pendingDone[t.id] = setTimeout(function () {
       li.classList.add('saving');
-      write('complete', { id: t.id, expect: t.thing.slice(0, 40) }, 'Done: ' + short(t.thing))
+      var params = { id: t.id, expect: t.thing.slice(0, 40) };
+      if (mode) params.subtasks = mode;
+      write('complete', params, 'Done: ' + short(t.thing))
         .then(function () { delete pendingDone[t.id]; }, function () {
           delete pendingDone[t.id];              // failed: show it as open again
           if (current) renderList(current, false);
@@ -360,10 +394,10 @@
     sel.value = value || '';
   }
 
-  function openTaskDialog(t) {
+  function openTaskDialog(t, underParent) {
     if (!vocab()) {                  // dropdown lists not saved yet: fetch them first
       spin(true);
-      loadVocab().then(function () { openTaskDialog(t); }, function () {
+      loadVocab().then(function () { openTaskDialog(t, underParent); }, function () {
         toast('Couldn\'t load the dropdown lists. Check your connection and try again.', true);
       }).finally(function () { spin(false); });
       return;
@@ -371,7 +405,7 @@
     editing = t || null;
     var v = vocab() || {};
     var people = (v.person || [me()]).filter(function (p) { return p !== '?'; });
-    $('taskTitle').textContent = t ? 'Edit task' : 'Add a task';
+    $('taskTitle').textContent = t ? 'Edit task' : underParent ? 'Add a sub-task to "' + short(underParent.thing) + '"' : 'Add a task';
     $('fThing').value = t ? t.thing : '';
     fillSelect($('fP'), priorities(), t ? t.p : 'P1');
     $('fDue').value = t ? (t.due || '') : (current && current.today) || '';
@@ -390,6 +424,15 @@
     $('fNotes').value = t ? (t.notes || '') : '';
     depChoice = t && t.dependsOn ? t.dependsOn.slice() : [];
     renderDeps();
+    fillParent(t ? (t.parentOf ? t.parentOf.id : '') : (underParent ? underParent.id : ''), t);
+    // A new sub-task starts with its parent's category, project, person and priority.
+    if (underParent) {
+      fillSelect($('fP'), priorities(), underParent.p || 'P1');
+      fillSelect($('fCategory'), (v.category || []).filter(function (c) { return c !== 'UNSORTED'; }), underParent.category || '', 'Guess for me');
+      fillSelect($('fProject'), (v.project || []).filter(function (c) { return c !== 'UNSORTED'; }), underParent.project || '', '—');
+      if (underParent.person && underParent.person.indexOf(',') === -1) fillSelect($('fPerson'), people, underParent.person);
+    }
+    $('addSubBtn').hidden = !t;
     $('taskError').hidden = true;
     $('taskSave').disabled = false;
     $('taskDialog').showModal();
@@ -431,6 +474,32 @@
   }
   function depIds(list) { return (list || []).map(function (d) { return d.id; }).join(','); }
 
+  // ---------- "Part of": this task's parent ----------
+  function fillParent(value, t) {
+    var sel = $('fParent'), selfId = t ? t.id : '';
+    var open = (current && current.open) || [];
+    // Not itself, and not one of its own sub-tasks (that would make a loop).
+    var below = {}, grew = true;
+    if (selfId) below[selfId] = true;
+    while (grew) {
+      grew = false;
+      open.forEach(function (o) { if (o.parent && below[o.parent] && !below[o.id]) { below[o.id] = true; grew = true; } });
+    }
+    sel.textContent = '';
+    var none = el('option', '', '— none —'); none.value = ''; sel.appendChild(none);
+    if (t && t.parentOf && t.parentOf.done) {
+      var gone = el('option', '', short(t.parentOf.thing) + ' (done)'); gone.value = t.parentOf.id; sel.appendChild(gone);
+    }
+    open.filter(function (o) { return o.id && !below[o.id]; })
+      .sort(function (a, b) { return a.thing.localeCompare(b.thing, undefined, { sensitivity: 'base' }); })
+      .forEach(function (o) {
+        var opt = el('option', '', short(o.thing) + (o.person && o.person.toLowerCase() !== me().toLowerCase() ? ' (' + o.person + ')' : ''));
+        opt.value = o.id;
+        sel.appendChild(opt);
+      });
+    sel.value = value || '';
+  }
+
   function taskFormValues() {
     return {
       thing: $('fThing').value.trim(), p: $('fP').value, due: $('fDue').value,
@@ -449,6 +518,7 @@
     if (!editing) {
       Object.keys(f).forEach(function (k) { if (f[k]) params[k] = f[k]; });
       if (depChoice.length) params.depends_on = depIds(depChoice);
+      if ($('fParent').value) params.parent = $('fParent').value;
       action = 'add'; okText = 'Added: ' + short(f.thing);
     } else {
       var cleared = [];
@@ -461,10 +531,17 @@
         err.textContent = 'The phone can\'t empty a field yet (' + cleared.join(', ') + '). Change it in the sheet, or pick a value.';
         err.hidden = false; return;
       }
+      var clears = [];
       if (depIds(depChoice) !== depIds(editing.dependsOn)) {
         if (depChoice.length) params.depends_on = depIds(depChoice);
-        else params.clear = 'depends_on';
+        else clears.push('depends_on');
       }
+      var parentNow = $('fParent').value, parentBefore = editing.parentOf ? editing.parentOf.id : '';
+      if (parentNow !== parentBefore) {
+        if (parentNow) params.parent = parentNow;
+        else clears.push('parent');
+      }
+      if (clears.length) params.clear = clears.join(',');
       if (!Object.keys(params).length) { $('taskDialog').close(); return; }
       params.id = editing.id;
       action = 'update'; okText = 'Saved: ' + short(f.thing);
@@ -597,6 +674,12 @@
     if (current) renderList(current, false);
   });
   $('fDepAdd').addEventListener('change', addDep);
+  $('addSubBtn').addEventListener('click', function () {
+    var parent = editing;
+    if (!parent) return;
+    $('taskDialog').close();
+    openTaskDialog(null, parent);
+  });
   $('menuBtn').addEventListener('click', function () { markTheme(); $('menuDialog').showModal(); });
 
   // ---------- appearance: follow the phone, or force light/dark on this phone ----------
