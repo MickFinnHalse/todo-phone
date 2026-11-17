@@ -16,6 +16,7 @@
 
   var LS = {
     api: 'todo.api', key: 'todo.key', person: 'todo.person', vocab: 'todo.vocab', sort: 'todo.sort', hideWaiting: 'todo.hideWaiting',
+    scope: 'todo.desk.scope', view: 'todo.desk.view', folded: 'todo.desk.folded',
     cache: function (p) { return 'todo.cache.' + p.toLowerCase(); }
   };
   var P_FALLBACK = ['P0', 'P1', 'P2', 'P3', 'P4', 'Y-Cadence'];
@@ -134,12 +135,21 @@
 
   function me() { return localStorage.getItem(LS.person) || ''; }
 
+  // Wide window (a laptop): the three-pane layout. Phones keep the card list.
+  var wideQuery = window.matchMedia('(min-width: 1000px)');
+  function isDesk() { return wideQuery.matches; }
+  function deskScope() { try { return localStorage.getItem(LS.scope) === 'all' ? 'all' : 'me'; } catch (e) { return 'me'; } }
+  /** The person whose list is loaded: blank = everyone (laptop "Everyone" only). */
+  function listPerson() { return isDesk() && deskScope() === 'all' ? '' : me(); }
+  function listKey() { return listPerson() || '*everyone'; }
+
   /** A write: sends it, renders the fresh list that comes back, reports the result. */
   function write(action, params, okText) {
     spin(true);
     return api(action, Object.assign({ me: me() }, params)).then(function (data) {
-      saveList(data.list);
-      renderList(data.list, false);
+      deskSaving = {};   // saved: no row is waiting on the Sheet any more
+      if (listPerson() === me()) { saveList(data.list); render(data.list, false); }
+      else loadList();   // the reply is only my own tasks; fetch everyone's again
       var freed = (data.freed || '').replace(/ \([0-9a-z]{4,8}\)/g, '');   // ids mean nothing on a phone
       toast((okText || data.message) + (freed ? ' · ' + freed : ''), false);
       return data;
@@ -172,7 +182,11 @@
   function show(id) {
     ['setup', 'picker', 'list'].forEach(function (s) { $(s).hidden = (s !== id); });
     var inList = id === 'list';
-    $('addBtn').hidden = !inList;
+    var desk = inList && isDesk();
+    $('desk').hidden = !desk;
+    $('main').hidden = desk;
+    document.body.classList.toggle('desk', isDesk());
+    $('addBtn').hidden = !inList || desk;
     $('sortBtn').hidden = !inList;
     $('menuBtn').hidden = !inList;
   }
@@ -263,8 +277,14 @@
   function saveList(data) {
     data.at = Date.now();
     current = data;
-    localStorage.setItem(LS.cache(me()), JSON.stringify(data));
+    localStorage.setItem(LS.cache(listKey()), JSON.stringify(data));
     lastLoad = Date.now();
+  }
+
+  /** Draw the list in whichever layout fits the window. */
+  function render(data, fromCache) {
+    current = data;
+    if (isDesk()) renderDesk(data, fromCache); else renderList(data, fromCache);
   }
 
   function renderList(data, fromCache) {
@@ -379,7 +399,7 @@
       write('complete', params, 'Done: ' + short(t.thing))
         .then(function () { delete pendingDone[t.id]; }, function () {
           delete pendingDone[t.id];              // failed: show it as open again
-          if (current) renderList(current, false);
+          if (current) render(current, false);
         });
     }, UNDO_MS);
   }
@@ -435,7 +455,10 @@
     $('addSubBtn').hidden = !t;
     $('taskError').hidden = true;
     $('taskSave').disabled = false;
-    $('taskDialog').showModal();
+    var dlg = $('taskDialog');
+    if (dlg.open) dlg.close();
+    if (isDesk()) { dlg.classList.add('side'); document.body.classList.add('panel-open'); dlg.show(); markSelected(t ? t.id : ''); }
+    else { dlg.classList.remove('side'); document.body.classList.remove('panel-open'); dlg.showModal(); }
     if (!t) $('fThing').focus();
   }
 
@@ -546,6 +569,15 @@
       params.id = editing.id;
       action = 'update'; okText = 'Saved: ' + short(f.thing);
     }
+    if (isDesk() && action === 'update') {
+      // Show the change straight away; the Sheet catches up in a second or two.
+      Object.keys(f).forEach(function (k) { if (params[k] !== undefined) editing[k] = f[k]; });
+      deskSaving[editing.id] = true;
+      $('taskDialog').close();
+      render(current, false);
+      write(action, params, okText).catch(function () { deskSaving = {}; loadList(); });
+      return;
+    }
     $('taskSave').disabled = true;
     write(action, params, okText).then(function () { $('taskDialog').close(); })
       .catch(function (e) { err.textContent = e.code === 'network' ? 'Couldn\'t reach the list. Nothing may have been saved; refresh to check.' : e.message; err.hidden = false; })
@@ -584,7 +616,7 @@
   function applySort(specs) {
     localStorage.setItem(LS.sort, JSON.stringify(specs));
     $('sortDialog').close();
-    if (current) renderList(current, false);
+    if (current) render(current, false);
   }
   function applyCustomSort(ev) {
     ev.preventDefault();
@@ -613,15 +645,15 @@
     var person = me();
     if (!person) return showPicker();
     $('who').textContent = person;
-    var cached = localStorage.getItem(LS.cache(person));
-    if (cached && $('list').hidden) { try { renderList(JSON.parse(cached), true); } catch (e) { /* ignore */ } }
+    var cached = localStorage.getItem(LS.cache(listKey()));
+    if (cached && $('list').hidden && $('desk').hidden) { try { render(JSON.parse(cached), true); } catch (e) { /* ignore */ } }
     loadVocab().catch(function () { /* the list still works; dropdowns use the saved copy */ });
     if (loading) return;
     loading = true; spin(true);
-    api('list', { person: person }).then(function (data) {
+    api('list', { person: listPerson() }).then(function (data) {
       saveList(data);
       notice('');
-      renderList(data, false);
+      render(data, false);
     }).catch(function (e) {
       if (e.code === 'setup') { show('setup'); return; }
       if (e.code === 'auth') { notice('This phone\'s app key isn\'t accepted any more. Ask the person who set this up for a new setup link.', true); return; }
@@ -657,6 +689,255 @@
     });
   }
 
+  // ================= wide-window layout (laptop) =================
+  // Views on the left, a sortable list in the middle (sub-tasks folded under
+  // their parent, waiting tasks last), and the edit box docked on the right.
+  var deskSaving = {};          // ids whose change is still on its way to the Sheet
+  var COLS = [
+    { key: 'thing', label: 'Task' }, { key: 'p', label: 'P' }, { key: 'due', label: 'Due' },
+    { key: 'urgency', label: 'Urgency' }, { key: 'person', label: 'Person' }, { key: 'project', label: 'Project' },
+    { key: 'category', label: 'Category' }, { key: 'status', label: 'Status' }
+  ];
+  function deskView() {
+    try { var v = JSON.parse(localStorage.getItem(LS.view)); if (v && v.type) return v; } catch (e) { /* default */ }
+    return { type: 'all' };
+  }
+  function setDeskView(v) { try { localStorage.setItem(LS.view, JSON.stringify(v)); } catch (e) { /* this visit only */ } if (current) render(current, false); }
+  function folded() { try { return JSON.parse(localStorage.getItem(LS.folded)) || {}; } catch (e) { return {}; } }
+  function setFolded(f) { try { localStorage.setItem(LS.folded, JSON.stringify(f)); } catch (e) { /* this visit only */ } }
+  function isWaitingT(t) { return !!(t.waiting && t.waiting.length); }
+  function hasOpenKids(t) { return !!(t.sub && t.sub.open && t.sub.open.length); }
+  function splitList(v) { return String(v || '').split(',').map(function (x) { return x.trim(); }).filter(function (x) { return x; }); }
+  function addDays(ymd, n) { var d = parseYmd(ymd); d.setDate(d.getDate() + n); return d.getFullYear() + '-' + ('0' + (d.getMonth() + 1)).slice(-2) + '-' + ('0' + d.getDate()).slice(-2); }
+
+  function inView(t, v, today) {
+    switch (v.type) {
+      case 'ready': return !isWaitingT(t) && !hasOpenKids(t);
+      case 'waiting': return isWaitingT(t);
+      case 'soon': return !!t.due && t.due <= addDays(today, 7);
+      case 'overdue': return !!t.due && t.due < today;
+      case 'project': return splitList(t.project).indexOf(v.value) !== -1;
+      case 'category': return t.category === v.value;
+      case 'person': return splitList(t.person).indexOf(v.value) !== -1;
+      default: return true;
+    }
+  }
+
+  function renderViews(all, today) {
+    var nav = $('views'), v = deskView();
+    nav.textContent = '';
+    var item = function (label, view, count) {
+      var b = el('button', 'view' + (v.type === view.type && (v.value || '') === (view.value || '') ? ' on' : ''));
+      b.type = 'button';
+      b.appendChild(el('span', '', label));
+      b.appendChild(el('span', 'count', String(count)));
+      b.addEventListener('click', function () { setDeskView(view); });
+      nav.appendChild(b);
+    };
+    var count = function (view) { return all.filter(function (t) { return inView(t, view, today); }).length; };
+    [['Ready now', { type: 'ready' }], ['Waiting', { type: 'waiting' }], ['All open', { type: 'all' }],
+      ['Due within a week', { type: 'soon' }], ['Overdue', { type: 'overdue' }]].forEach(function (x) { item(x[0], x[1], count(x[1])); });
+    var group = function (title, type, values) {
+      if (!values.length) return;
+      nav.appendChild(el('h3', '', title));
+      values.forEach(function (val) { var view = { type: type, value: val }; item(val, view, count(view)); });
+    };
+    var uniq = function (getter) {
+      var seen = {}, out = [];
+      all.forEach(function (t) { getter(t).forEach(function (x) { if (!seen[x]) { seen[x] = true; out.push(x); } }); });
+      return out.sort(function (a, b) { return a.localeCompare(b, undefined, { sensitivity: 'base' }); });
+    };
+    group('Projects', 'project', uniq(function (t) { return splitList(t.project); }));
+    group('Categories', 'category', uniq(function (t) { return t.category ? [t.category] : []; }));
+    if (deskScope() === 'all') group('People', 'person', uniq(function (t) { return splitList(t.person); }));
+  }
+
+  function renderHead() {
+    var head = $('gridHead'), specs = sortSpecs(), first = specs[0] || {};
+    head.textContent = '';
+    var tr = el('tr');
+    tr.appendChild(el('th', 'c-tick'));
+    COLS.forEach(function (c) {
+      var th = el('th', 'c-' + c.key);
+      var b = el('button', 'sort-h', c.label + (first.key === c.key ? (first.desc ? ' ↓' : ' ↑') : ''));
+      b.type = 'button';
+      b.title = 'Sort by ' + c.label;
+      b.addEventListener('click', function () {
+        var desc = first.key === c.key ? !first.desc : false;
+        var spec = { key: c.key }; if (desc) spec.desc = true;
+        localStorage.setItem(LS.sort, JSON.stringify([spec].concat(specs.filter(function (s) { return s.key !== c.key; }).slice(0, 2))));
+        if (current) render(current, false);
+      });
+      th.appendChild(b);
+      tr.appendChild(th);
+    });
+    head.appendChild(tr);
+  }
+
+  function markSelected(id) {
+    Array.prototype.forEach.call(document.querySelectorAll('#gridBody tr.row'), function (tr) {
+      tr.classList.toggle('selected', !!id && tr.dataset.id === id);
+    });
+  }
+
+  function renderDesk(data, fromCache) {
+    current = data;
+    var today = data.today, v = deskView();
+    var q = ($('search').value || '').trim().toLowerCase();
+    var all = sortTasks(data.tasks || []);
+    var fold = folded();
+    Array.prototype.forEach.call(document.querySelectorAll('.seg [data-scope]'), function (b) {
+      b.setAttribute('aria-pressed', String(b.getAttribute('data-scope') === deskScope()));
+    });
+    renderViews(all, today);
+    renderHead();
+
+    var shown = all.filter(function (t) {
+      if (!inView(t, v, today)) return false;
+      if (!q) return true;
+      return [t.thing, t.notes, t.project, t.category, t.person].join(' ').toLowerCase().indexOf(q) !== -1;
+    });
+    var hide = hideWaiting() && v.type !== 'waiting';
+    var items = [];
+    if (q) {
+      shown.forEach(function (t) { items.push({ t: t, depth: 0, section: 'ready', kids: 0 }); });   // search: a flat list of matches
+    } else {
+      var byId = {}, kidsOf = {}, tops = [], seen = {};
+      shown.forEach(function (t) { byId[t.id] = t; });
+      shown.forEach(function (t) {
+        var pid = t.parentOf && t.parentOf.id;
+        if (pid && pid !== t.id && byId[pid]) (kidsOf[pid] = kidsOf[pid] || []).push(t); else tops.push(t);
+      });
+      var walk = function (t, depth, section, hidden) {
+        if (seen[t.id]) return;
+        seen[t.id] = true;
+        var kids = kidsOf[t.id] || [];
+        if (!hidden) items.push({ t: t, depth: depth, section: section, kids: kids.length });
+        kids.forEach(function (k) { walk(k, depth + 1, section, hidden || !!fold[t.id]); });
+      };
+      var waitLast = v.type !== 'waiting';
+      tops.filter(function (t) { return !waitLast || !isWaitingT(t); }).forEach(function (t) { walk(t, 0, 'ready', false); });
+      if (waitLast) tops.filter(isWaitingT).forEach(function (t) { walk(t, 0, 'waiting', hide); });
+      shown.forEach(function (t) { if (!seen[t.id]) walk(t, 0, 'ready', false); });
+    }
+
+    var waitingN = shown.filter(isWaitingT).length;
+    var overdue = shown.filter(function (t) { return t.due && t.due < today; }).length;
+    $('gridSummary').textContent = shown.length + ' task' + (shown.length === 1 ? '' : 's') +
+      (waitingN ? ' · ' + waitingN + ' waiting' + (hide ? ' (hidden)' : '') : '') +
+      (overdue ? ' · ' + overdue + ' overdue' : '') + (deskScope() === 'all' ? ' · everyone' : ' · ' + me()) +
+      (fromCache ? ' · saved copy from ' + new Date(data.at).toLocaleString(undefined, { weekday: 'short', hour: '2-digit', minute: '2-digit' }) : '');
+
+    var body = $('gridBody');
+    body.textContent = '';
+    if (!items.length) {
+      var tr0 = el('tr'); var td0 = el('td', 'empty', q ? 'Nothing matches "' + q + '".' : 'Nothing in this view.');
+      td0.colSpan = COLS.length + 1; tr0.appendChild(td0); body.appendChild(tr0);
+    }
+    var dividerDone = false;
+    var editingId = $('taskDialog').open && editing ? editing.id : '';
+    items.forEach(function (item) {
+      var t = item.t;
+      if (item.section === 'waiting' && !dividerDone) {
+        var trd = el('tr', 'divider-row'); var tdd = el('td', '', 'Waiting on another task');
+        tdd.colSpan = COLS.length + 1; trd.appendChild(tdd); body.appendChild(trd); dividerDone = true;
+      }
+      var tr = el('tr', 'row' + (isWaitingT(t) ? ' waiting' : '') + (pendingDone[t.id] ? ' pending' : '') +
+        (deskSaving[t.id] ? ' saving-soft' : '') + (t.id === editingId ? ' selected' : ''));
+      tr.dataset.id = t.id;
+
+      var tdTick = el('td', 'c-tick');
+      var tick = el('button', 'tick');
+      tick.type = 'button';
+      tick.setAttribute('aria-label', 'Mark done: ' + t.thing);
+      var circle = el('span');
+      circle.innerHTML = '<svg viewBox="0 0 24 24" aria-hidden="true"><path d="M9 16.2 4.8 12l-1.4 1.4L9 19 21 7l-1.4-1.4z"/></svg>';
+      tick.appendChild(circle);
+      tick.addEventListener('click', function (ev) { ev.stopPropagation(); toggleDone(t, tr); });
+      tdTick.appendChild(tick);
+      tr.appendChild(tdTick);
+
+      var tdT = el('td', 'c-thing');
+      var line = el('div', 'tline');
+      line.style.paddingLeft = (item.depth * 22) + 'px';
+      if (item.kids) {
+        var tog = el('button', 'fold', fold[t.id] ? '▸' : '▾');
+        tog.type = 'button';
+        tog.setAttribute('aria-label', (fold[t.id] ? 'Show' : 'Hide') + ' sub-tasks of ' + t.thing);
+        tog.addEventListener('click', function (ev) {
+          ev.stopPropagation();
+          var f = folded(); if (f[t.id]) delete f[t.id]; else f[t.id] = true;
+          setFolded(f); render(current, false);
+        });
+        line.appendChild(tog);
+      } else if (item.depth) line.appendChild(el('span', 'fold-gap'));
+      line.appendChild(el('span', 'tname', t.thing));
+      if (t.sub && t.sub.total) {
+        var allDone = !t.sub.open.length;
+        line.appendChild(el('span', 'progress' + (allDone ? ' all' : ''), allDone ? 'All done' : t.sub.done + '/' + t.sub.total));
+      }
+      tdT.appendChild(line);
+      var names = function (list) { return list.map(function (x) { return x.thing; }).join(' · '); };
+      var sub = [];
+      if (isWaitingT(t)) sub.push(el('span', 'waiting-on', 'Waiting on: ' + names(t.waiting)));
+      if (t.blocking && t.blocking.length) sub.push(el('span', '', 'Holding up: ' + names(t.blocking)));
+      if (t.parentOf && (q || !(items.some(function (x) { return x.t.id === t.parentOf.id; })))) sub.push(el('span', '', 'Part of: ' + t.parentOf.thing + (t.parentOf.done ? ' (done)' : '')));
+      sub.push(el('span', 'undo-note', 'Marked done. Click the tick again to undo.'));   // shown only while ticked
+      if (sub.length) {
+        var dl = el('div', 'tsub'); dl.style.paddingLeft = (item.depth * 22 + 20) + 'px';
+        sub.forEach(function (x) { dl.appendChild(x); });
+        tdT.appendChild(dl);
+      }
+      tr.appendChild(tdT);
+
+      var due = dueLabel(t.due, today);
+      var cells = {
+        p: t.p ? el('span', 'pill ' + t.p, t.p) : null,
+        due: due ? el('span', 'due ' + due.cls, due.text) : null,
+        urgency: t.urgency || '', person: t.person || '', project: t.project || '',
+        category: t.category || '', status: t.status ? t.status.replace(/^[A-Z]_/, '') : ''
+      };
+      COLS.slice(1).forEach(function (c) {
+        var td = el('td', 'c-' + c.key), val = cells[c.key];
+        if (val && val.nodeType) td.appendChild(val); else td.textContent = val || '';
+        tr.appendChild(td);
+      });
+      tr.addEventListener('click', function () { if (!pendingDone[t.id]) openTaskDialog(t); });
+      body.appendChild(tr);
+    });
+    show('list');
+  }
+
+  // Laptop wiring
+  $('search').addEventListener('input', function () { if (current) render(current, false); });
+  Array.prototype.forEach.call(document.querySelectorAll('.seg [data-scope]'), function (b) {
+    b.addEventListener('click', function () {
+      try { localStorage.setItem(LS.scope, b.getAttribute('data-scope')); } catch (e) { /* this visit only */ }
+      var v = deskView(); if (v.type === 'person') setDeskView({ type: 'all' });
+      loadList();
+    });
+  });
+  $('deskAdd').addEventListener('click', function () { openTaskDialog(null); });
+  // When the panel closes (Save, Cancel, Escape), the list takes the full width again.
+  // Watched on the "open" attribute itself: the dialog's close event did not fire reliably.
+  new MutationObserver(function () {
+    if (!$('taskDialog').open) { markSelected(''); document.body.classList.remove('panel-open'); }
+  }).observe($('taskDialog'), { attributes: true, attributeFilter: ['open'] });
+  document.addEventListener('keydown', function (ev) {
+    if (ev.key === 'Escape' && isDesk() && $('taskDialog').open && $('taskDialog').classList.contains('side')) $('taskDialog').close();
+  });
+  // Switching between a wide and a narrow window redraws the right layout.
+  var onWidth = function () {
+    if ($('taskDialog').open) $('taskDialog').close();
+    if (current) { if (listPerson() !== (current.person || me())) loadList(); else render(current, false); }
+  };
+  if (wideQuery.addEventListener) wideQuery.addEventListener('change', onWidth); else wideQuery.addListener(onWidth);
+  // Keep the laptop window fresh: reload every minute while it is in front and idle.
+  setInterval(function () {
+    if (isDesk() && document.visibilityState === 'visible' && !$('desk').hidden && !loading &&
+      !Object.keys(pendingDone).length && !Object.keys(deskSaving).length && !$('taskDialog').open) loadList();
+  }, 60 * 1000);
+
   // ---------- wire up ----------
   $('who').addEventListener('click', showPicker);
   $('refresh').addEventListener('click', function () {
@@ -671,7 +952,7 @@
   $('sortCancel').addEventListener('click', function () { $('sortDialog').close(); });
   $('hideWaiting').addEventListener('change', function () {
     try { localStorage.setItem(LS.hideWaiting, $('hideWaiting').checked ? '1' : '0'); } catch (e) { /* this visit only */ }
-    if (current) renderList(current, false);
+    if (current) render(current, false);
   });
   $('fDepAdd').addEventListener('change', addDep);
   $('addSubBtn').addEventListener('click', function () {

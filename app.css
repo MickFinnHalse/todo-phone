@@ -172,3 +172,53 @@ dialog label.check input { width: 22px; height: 22px; margin: 0; flex: none; }
   border-left: 2px solid var(--line); border-bottom: 2px solid var(--line); border-bottom-left-radius: 8px; }
 .progress { padding: 1px 8px; border-radius: 999px; border: 1px solid var(--line); font-weight: 600; }
 .progress.all { border-color: var(--brand); color: var(--brand); }
+
+/* ================= Wide window (laptop, 17 Nov 2026) ================= */
+#desk { display: grid; grid-template-columns: 240px minmax(0, 1fr); gap: 0; min-height: calc(100vh - 64px); }
+body.desk.panel-open #desk { padding-right: 440px; }
+.views { border-right: 1px solid var(--line); padding: 12px 8px 40px; overflow-y: auto; max-height: calc(100vh - 64px); position: sticky; top: 64px; }
+.views h3 { margin: 16px 10px 6px; font-size: .75rem; text-transform: uppercase; letter-spacing: .05em; color: var(--muted); }
+.views .view { display: flex; justify-content: space-between; align-items: center; width: 100%; gap: 8px; padding: 7px 10px;
+  border: 0; border-radius: 8px; background: transparent; text-align: left; font-size: .92rem; cursor: pointer; }
+.views .view:hover { background: var(--card); }
+.views .view.on { background: var(--brand); color: var(--brand-ink); font-weight: 600; }
+.views .view .count { font-size: .8rem; opacity: .75; }
+.grid-wrap { padding: 12px 18px 60px; min-width: 0; }
+.grid-bar { display: flex; gap: 10px; align-items: center; margin-bottom: 6px; }
+.grid-bar input[type=search] { flex: 1; min-width: 0; max-width: 420px; padding: 9px 12px; border: 1px solid var(--line); border-radius: 10px;
+  background: var(--card); color: var(--ink); font: inherit; }
+.seg { display: inline-flex; border: 1px solid var(--line); border-radius: 10px; overflow: hidden; }
+.seg button { border: 0; padding: 8px 14px; background: var(--card); cursor: pointer; font-weight: 600; }
+.seg button[aria-pressed="true"] { background: var(--brand); color: var(--brand-ink); }
+.grid { width: 100%; border-collapse: separate; border-spacing: 0; font-size: .9rem; }
+.grid th { position: sticky; top: 64px; z-index: 1; background: var(--bg); text-align: left; padding: 6px 8px; border-bottom: 2px solid var(--line); white-space: nowrap; }
+.grid .sort-h { border: 0; background: transparent; font-weight: 700; font-size: .8rem; color: var(--muted); cursor: pointer; padding: 2px 0; }
+.grid td { padding: 6px 8px; border-bottom: 1px solid var(--line); vertical-align: top; }
+.grid tr.row { cursor: pointer; background: var(--card); }
+.grid tr.row:hover td { background: color-mix(in srgb, var(--brand) 8%, var(--card)); }
+.grid tr.row.selected td { background: color-mix(in srgb, var(--brand) 18%, var(--card)); }
+.grid tr.row.waiting td { background: transparent; color: var(--muted); }
+.grid tr.row.pending .tname { text-decoration: line-through; color: var(--muted); }
+.grid tr.row.saving-soft { opacity: .7; }
+.grid .c-tick { width: 36px; padding: 2px 0 2px 4px; }
+.grid .c-tick .tick { width: 32px; height: 32px; margin: 0; }
+.grid .c-tick .tick span { width: 20px; height: 20px; }
+.grid tr.row.pending .tick span { background: var(--brand); border-color: var(--brand); }
+.grid tr.row.pending .tick svg { visibility: visible; }
+.grid .c-thing { width: 40%; }
+.grid .tline { display: flex; align-items: flex-start; gap: 6px; }
+.grid .tname { overflow-wrap: anywhere; }
+.grid .fold { border: 0; background: transparent; width: 16px; padding: 0; cursor: pointer; color: var(--muted); font-size: .85rem; line-height: 1.5; }
+.grid .fold-gap { display: inline-block; width: 16px; flex: none; }
+.grid .tsub { display: flex; flex-wrap: wrap; gap: 4px 12px; margin-top: 3px; font-size: .8rem; color: var(--muted); }
+.grid .tsub .waiting-on { color: var(--today); font-weight: 600; }
+.grid .tsub .undo-note { display: none; color: var(--brand); font-weight: 600; }
+.grid tr.row.pending .tsub .undo-note { display: inline; }
+.grid .progress { font-size: .75rem; flex: none; }
+.grid .c-p, .grid .c-due, .grid .c-urgency, .grid .c-status, .grid .c-person { white-space: nowrap; }
+.grid .empty { text-align: center; color: var(--muted); padding: 40px 10px; }
+.grid .divider-row td { background: transparent; color: var(--muted); font-size: .75rem; font-weight: 700; text-transform: uppercase;
+  letter-spacing: .04em; padding-top: 18px; border-bottom: 0; }
+/* The edit box, docked on the right instead of popping up */
+dialog.side { position: fixed; inset: 64px 0 0 auto; margin: 0; width: 430px; max-width: 430px; max-height: none; height: calc(100vh - 64px);
+  border-radius: 0; border-left: 1px solid var(--line); box-shadow: -6px 0 18px rgba(0,0,0,.12); overflow-y: auto; z-index: 5; }

@@ -53,6 +53,26 @@
     </section>
   </main>
 
+  <!-- Wide-window layout (laptop): views | list | the task panel (the edit box, docked) -->
+  <div id="desk" class="desk" hidden>
+    <nav id="views" class="views" aria-label="Views"></nav>
+    <section class="grid-wrap" aria-label="Tasks">
+      <div class="grid-bar">
+        <input id="search" type="search" placeholder="Search tasks" autocomplete="off" aria-label="Search tasks">
+        <div class="seg" role="group" aria-label="Whose tasks">
+          <button type="button" data-scope="me">Mine</button>
+          <button type="button" data-scope="all">Everyone</button>
+        </div>
+        <button type="button" id="deskAdd" class="btn primary">+ Add</button>
+      </div>
+      <p id="gridSummary" class="summary"></p>
+      <table class="grid">
+        <thead id="gridHead"></thead>
+        <tbody id="gridBody"></tbody>
+      </table>
+    </section>
+  </div>
+
   <button id="addBtn" class="fab" type="button" aria-label="Add a task" hidden>
     <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M19 13h-6v6h-2v-6H5v-2h6V5h2v6h6v2z"/></svg>
   </button>
