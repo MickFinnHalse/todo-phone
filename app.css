@@ -274,3 +274,6 @@ dialog.side .dlg-head { top: -18px; }
 /* Laptop: the search bar and count stay pinned under the top bar (18 Nov 2026) */
 .grid-top { position: sticky; top: 64px; z-index: 2; background: var(--bg); padding: 12px 0 2px; margin-top: -12px; }
 .grid-top .summary { margin-bottom: 6px; }
+
+/* Install as app (18 Nov 2026) */
+.btn.install { border-color: var(--brand); color: var(--brand); background: var(--card); }

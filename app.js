@@ -1017,6 +1017,25 @@
   }
   window.addEventListener('resize', pinHeadings);
 
+  // One-click install as an app (its own window, no browser tabs or address bar).
+  // Chrome offers this through the beforeinstallprompt event when the app is
+  // installable and not yet installed; the button only shows then.
+  var installEvt = null;
+  window.addEventListener('beforeinstallprompt', function (e) {
+    e.preventDefault();
+    installEvt = e;
+    if (!matchMedia('(display-mode: standalone)').matches) $('installBtn').hidden = false;
+  });
+  $('installBtn').addEventListener('click', function () {
+    if (!installEvt) { toast('Use Chrome\'s menu: ⋮ → Cast, save, and share → Install page as app.', false); return; }
+    installEvt.prompt();
+    installEvt.userChoice.then(function () { installEvt = null; $('installBtn').hidden = true; });
+  });
+  window.addEventListener('appinstalled', function () {
+    $('installBtn').hidden = true;
+    toast('Installed. Open "To-do" from the Start menu or taskbar.', false);
+  });
+
   // Laptop wiring
   $('search').addEventListener('input', function () { if (current) render(current, false); });
   Array.prototype.forEach.call(document.querySelectorAll('.seg [data-scope]'), function (b) {
