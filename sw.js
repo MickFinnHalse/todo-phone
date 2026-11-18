@@ -4,7 +4,7 @@
  * app keeps its own last-seen list in localStorage and always asks the server
  * first. Bump VERSION whenever any shell file changes.
  */
-var VERSION = 'todo-shell-v22';
+var VERSION = 'todo-shell-v23';
 var SHELL = ['./', 'index.html', 'app.js', 'qrcode.js', 'app.css', 'manifest.webmanifest', 'icon-192.png', 'icon-512.png'];
 
 self.addEventListener('install', function (e) {
@@ -22,7 +22,10 @@ self.addEventListener('activate', function (e) {
 self.addEventListener('fetch', function (e) {
   var url = new URL(e.request.url);
   if (e.request.method !== 'GET' || url.origin !== self.location.origin) return;
-  e.respondWith(fetch(e.request).then(function (res) {
+  // cache: 'no-cache' asks GitHub whether each file changed (a quick check), so
+  // the page and its script are always the same version straight after a
+  // release, instead of one coming from the browser's 10-minute cache.
+  e.respondWith(fetch(e.request.url, { cache: 'no-cache', credentials: 'same-origin' }).then(function (res) {
     var copy = res.clone();
     caches.open(VERSION).then(function (c) { c.put(e.request, copy); });
     return res;

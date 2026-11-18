@@ -1024,15 +1024,15 @@
   window.addEventListener('beforeinstallprompt', function (e) {
     e.preventDefault();
     installEvt = e;
-    if (!matchMedia('(display-mode: standalone)').matches) $('installBtn').hidden = false;
+    if (!matchMedia('(display-mode: standalone)').matches && $('installBtn')) $('installBtn').hidden = false;
   });
-  $('installBtn').addEventListener('click', function () {
+  if ($('installBtn')) $('installBtn').addEventListener('click', function () {
     if (!installEvt) { toast('Use Chrome\'s menu: ⋮ → Cast, save, and share → Install page as app.', false); return; }
     installEvt.prompt();
     installEvt.userChoice.then(function () { installEvt = null; $('installBtn').hidden = true; });
   });
   window.addEventListener('appinstalled', function () {
-    $('installBtn').hidden = true;
+    if ($('installBtn')) $('installBtn').hidden = true;
     toast('Installed. Open "To-do" from the Start menu or taskbar.', false);
   });
 
