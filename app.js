@@ -889,6 +889,7 @@
     });
     renderViews(all, today);
     renderHead();
+    setTimeout(pinHeadings, 0);
 
     var shown = all.filter(function (t) {
       if (!inView(t, v, today)) return false;
@@ -1008,6 +1009,13 @@
     });
     show('list');
   }
+
+  // The column headings pin just below the pinned search bar, whatever its height.
+  function pinHeadings() {
+    var top = $('gridTop');
+    if (top && top.offsetHeight) document.documentElement.style.setProperty('--grid-head-top', (64 + top.offsetHeight) + 'px');
+  }
+  window.addEventListener('resize', pinHeadings);
 
   // Laptop wiring
   $('search').addEventListener('input', function () { if (current) render(current, false); });

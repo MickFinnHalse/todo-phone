@@ -191,7 +191,7 @@ body.desk.panel-open #desk { padding-right: 440px; }
 .seg button { border: 0; padding: 8px 14px; background: var(--card); cursor: pointer; font-weight: 600; }
 .seg button[aria-pressed="true"] { background: var(--brand); color: var(--brand-ink); }
 .grid { width: 100%; border-collapse: separate; border-spacing: 0; font-size: .9rem; }
-.grid th { position: sticky; top: 64px; z-index: 1; background: var(--bg); text-align: left; padding: 6px 8px; border-bottom: 2px solid var(--line); white-space: nowrap; }
+.grid th { position: sticky; top: var(--grid-head-top, 64px); z-index: 1; background: var(--bg); text-align: left; padding: 6px 8px; border-bottom: 2px solid var(--line); white-space: nowrap; }
 .grid .sort-h { border: 0; background: transparent; font-weight: 700; font-size: .8rem; color: var(--muted); cursor: pointer; padding: 2px 0; }
 .grid td { padding: 6px 8px; border-bottom: 1px solid var(--line); vertical-align: top; }
 .grid tr.row { cursor: pointer; background: var(--card); }
@@ -270,3 +270,7 @@ dialog.side .dlg-head { top: -18px; }
 .grid .tline .tick span { width: 18px; height: 18px; }
 .grid tr.row.pending .tline .tick span { background: var(--brand); border-color: var(--brand); }
 .grid tr.row.pending .tline .tick svg { visibility: visible; }
+
+/* Laptop: the search bar and count stay pinned under the top bar (18 Nov 2026) */
+.grid-top { position: sticky; top: 64px; z-index: 2; background: var(--bg); padding: 12px 0 2px; margin-top: -12px; }
+.grid-top .summary { margin-bottom: 6px; }
