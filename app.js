@@ -16,7 +16,7 @@
 
   var LS = {
     api: 'todo.api', key: 'todo.key', person: 'todo.person', vocab: 'todo.vocab', sort: 'todo.sort', hideWaiting: 'todo.hideWaiting',
-    scope: 'todo.desk.scope', view: 'todo.desk.view', folded: 'todo.desk.folded', colw: 'todo.desk.colw',
+    scope: 'todo.desk.scope', view: 'todo.desk.view', folded: 'todo.desk.folded', colw: 'todo.desk.colw', colorder: 'todo.desk.colorder',
     cache: function (p) { return 'todo.cache.' + p.toLowerCase(); }
   };
   var P_FALLBACK = ['P0', 'P1', 'P2', 'P3', 'P4', 'Y-Cadence'];
@@ -759,12 +759,18 @@
     head.textContent = '';
     var tr = el('tr');
     tr.appendChild(el('th', 'c-tick'));
-    COLS.forEach(function (c) {
+    orderedCols().forEach(function (c) {
       var th = el('th', 'c-' + c.key);
+      // Drag a heading sideways onto another to move the column there
+      // (a plain click still sorts).
+      th.dataset.key = c.key;
+      th.classList.add('movable');
+      th.addEventListener('mousedown', function (ev) { startColumnMove(ev, th, c.key); });
       var b = el('button', 'sort-h', c.label + (first.key === c.key ? (first.desc ? ' ↓' : ' ↑') : ''));
       b.type = 'button';
       b.title = 'Sort by ' + c.label;
       b.addEventListener('click', function () {
+        if (colMoved) return;
         var desc = first.key === c.key ? !first.desc : false;
         var spec = { key: c.key }; if (desc) spec.desc = true;
         localStorage.setItem(LS.sort, JSON.stringify([spec].concat(specs.filter(function (s) { return s.key !== c.key; }).slice(0, 2))));
@@ -774,11 +780,11 @@
       var w = colWidths()[c.key];
       if (w) th.style.width = w + 'px';
       var grip = el('span', 'col-resize');
-      grip.title = 'Drag to change the width. Double-click to reset all widths.';
+      grip.title = 'Drag to change the width. Double-click to reset all column widths and order.';
       grip.addEventListener('mousedown', function (ev) { startResize(ev, th, c.key); });
       grip.addEventListener('dblclick', function (ev) {
         ev.stopPropagation();
-        try { localStorage.removeItem(LS.colw); } catch (e) { /* this visit only */ }
+        try { localStorage.removeItem(LS.colw); localStorage.removeItem(LS.colorder); } catch (e) { /* this visit only */ }
         if (current) render(current, false);
       });
       th.appendChild(grip);
@@ -788,6 +794,52 @@
     head.parentNode.classList.toggle('fixed', Object.keys(colWidths()).length > 0);
   }
 
+  /** Columns in the order you arranged them (new columns go at the end). */
+  function orderedCols() {
+    var order = [];
+    try { order = JSON.parse(localStorage.getItem(LS.colorder)) || []; } catch (e) { order = []; }
+    var byKey = {}; COLS.forEach(function (c) { byKey[c.key] = c; });
+    var out = order.filter(function (k) { return byKey[k]; }).map(function (k) { return byKey[k]; });
+    COLS.forEach(function (c) { if (out.indexOf(c) === -1) out.push(c); });
+    return out;
+  }
+  var colMoved = false;   // set while a heading drag happens, so its click does not also sort
+  function startColumnMove(ev, th, key) {
+    if (ev.button !== 0 || ev.target.classList.contains('col-resize')) return;
+    var x0 = ev.clientX, moving = false, target = null;
+    var heads = function () { return Array.prototype.slice.call(document.querySelectorAll('#gridHead th[data-key]')); };
+    var move = function (e) {
+      if (!moving && Math.abs(e.clientX - x0) < 6) return;
+      if (!moving) { moving = true; th.classList.add('dragging'); document.body.classList.add('moving-col'); }
+      target = null;
+      heads().forEach(function (h) {
+        var r = h.getBoundingClientRect(), over = e.clientX >= r.left && e.clientX < r.right;
+        h.classList.toggle('drop-target', over && h !== th);
+        if (over && h !== th) target = h.dataset.key;
+      });
+    };
+    var up = function () {
+      document.removeEventListener('mousemove', move);
+      document.removeEventListener('mouseup', up);
+      document.body.classList.remove('moving-col');
+      heads().forEach(function (h) { h.classList.remove('drop-target', 'dragging'); });
+      if (moving) {
+        colMoved = true; setTimeout(function () { colMoved = false; }, 0);
+        if (target) moveColumn(key, target);
+      }
+    };
+    document.addEventListener('mousemove', move);
+    document.addEventListener('mouseup', up);
+  }
+  /** Put column `from` where column `to` is now (before it when moving left, after it when moving right). */
+  function moveColumn(from, to) {
+    var keys = orderedCols().map(function (c) { return c.key; });
+    var i = keys.indexOf(from), j = keys.indexOf(to);
+    keys.splice(i, 1);
+    keys.splice(j, 0, from);
+    try { localStorage.setItem(LS.colorder, JSON.stringify(keys)); } catch (e) { /* this visit only */ }
+    if (current) render(current, false);
+  }
   function colWidths() { try { return JSON.parse(localStorage.getItem(LS.colw)) || {}; } catch (e) { return {}; } }
   function startResize(ev, th, key) {
     ev.preventDefault(); ev.stopPropagation();
@@ -934,16 +986,16 @@
         sub.forEach(function (x) { dl.appendChild(x); });
         tdT.appendChild(dl);
       }
-      tr.appendChild(tdT);
-
       var due = dueLabel(t.due, today);
       var cells = {
+        thing: tdT,
         p: t.p ? el('span', 'pill ' + t.p, t.p) : null,
         due: due ? el('span', 'due ' + due.cls, due.text) : null,
         roi: t.roi || '', urgency: t.urgency ? urgencyPill(t.urgency) : null, person: t.person || '', project: t.project || '',
         category: t.category || '', status: t.status ? t.status.replace(/^[A-Z]_/, '') : ''
       };
-      COLS.slice(1).forEach(function (c) {
+      orderedCols().forEach(function (c) {
+        if (c.key === 'thing') { tr.appendChild(tdT); return; }
         var td = el('td', 'c-' + c.key), val = cells[c.key];
         if (val && val.nodeType) td.appendChild(val); else td.textContent = val || '';
         tr.appendChild(td);
@@ -1001,6 +1053,8 @@
     if (current) render(current, false);
   });
   $('fDepAdd').addEventListener('change', addDep);
+  // One click removes the due date (no clearing day, month and year one by one).
+  $('fDueClear').addEventListener('click', function (ev) { ev.preventDefault(); $('fDue').value = ''; $('fDue').focus(); });
   $('addSubBtn').addEventListener('click', function () {
     var parent = editing;
     if (!parent) return;

@@ -242,3 +242,16 @@ dialog.side { position: fixed; inset: 64px 0 0 auto; margin: 0; width: 430px; ma
 .grid.fixed .c-thing { width: auto; }
 .grid .c-roi { white-space: nowrap; }
 body.resizing { cursor: col-resize; user-select: none; }
+
+/* Drag a column heading to move the column (18 Nov 2026) */
+.grid th.movable { cursor: grab; }
+body.moving-col, body.moving-col * { cursor: grabbing !important; user-select: none; }
+.grid th.dragging { opacity: .45; }
+.grid th.drop-target { box-shadow: inset 3px 0 0 var(--brand); }
+
+/* One-click "no due date" (18 Nov 2026) */
+.date-wrap { display: flex; gap: 6px; align-items: stretch; margin-top: 4px; }
+.date-wrap input { margin-top: 0 !important; flex: 1; min-width: 0; }
+.date-clear { flex: none; width: 40px; border: 1px solid var(--line); border-radius: 10px; background: var(--bg); color: var(--muted);
+  font-size: 1.3rem; line-height: 1; cursor: pointer; }
+.date-clear:hover { color: var(--overdue); border-color: var(--overdue); }
