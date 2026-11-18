@@ -222,3 +222,23 @@ body.desk.panel-open #desk { padding-right: 440px; }
 /* The edit box, docked on the right instead of popping up */
 dialog.side { position: fixed; inset: 64px 0 0 auto; margin: 0; width: 430px; max-width: 430px; max-height: none; height: calc(100vh - 64px);
   border-radius: 0; border-left: 1px solid var(--line); box-shadow: -6px 0 18px rgba(0,0,0,.12); overflow-y: auto; z-index: 5; }
+
+/* Urgency ovals (18 Nov 2026): colours follow the Sheet's own chips */
+.upill { display: inline-block; padding: 1px 9px; border-radius: 999px; font-weight: 700; font-size: .78rem; white-space: nowrap; }
+.upill.u-today { background: #b7e1cd; color: #0d3b24; }
+.upill.u-tomorrow { background: #f6c7a8; color: #5a2a0a; }
+.upill.u-soon { background: #fce8b2; color: #5c4300; }
+.upill.u-next { background: #c6dafc; color: #0b2e66; }
+.upill.u-later { background: #e0e0e0; color: #333; }
+.upill.u-other { background: var(--line); color: var(--ink); }
+.btn.sub-add { margin: -4px 0 14px; border-style: dashed; color: var(--brand); }
+
+/* Column widths you can drag (18 Nov 2026) */
+.grid th { position: sticky; }
+.grid th .col-resize { position: absolute; top: 0; right: -4px; width: 9px; height: 100%; cursor: col-resize; z-index: 2; }
+.grid th .col-resize:hover, body.resizing .grid th .col-resize { background: color-mix(in srgb, var(--brand) 45%, transparent); }
+.grid.fixed { table-layout: fixed; }
+.grid.fixed td, .grid.fixed th { overflow: hidden; text-overflow: ellipsis; }
+.grid.fixed .c-thing { width: auto; }
+.grid .c-roi { white-space: nowrap; }
+body.resizing { cursor: col-resize; user-select: none; }

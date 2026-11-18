@@ -16,7 +16,7 @@
 
   var LS = {
     api: 'todo.api', key: 'todo.key', person: 'todo.person', vocab: 'todo.vocab', sort: 'todo.sort', hideWaiting: 'todo.hideWaiting',
-    scope: 'todo.desk.scope', view: 'todo.desk.view', folded: 'todo.desk.folded',
+    scope: 'todo.desk.scope', view: 'todo.desk.view', folded: 'todo.desk.folded', colw: 'todo.desk.colw',
     cache: function (p) { return 'todo.cache.' + p.toLowerCase(); }
   };
   var P_FALLBACK = ['P0', 'P1', 'P2', 'P3', 'P4', 'Y-Cadence'];
@@ -197,6 +197,11 @@
     return e;
   }
   function spin(on) { $('refresh').classList.toggle('spin', on); }
+  /** Urgency as a coloured oval (Today green, Tomorrow orange, Soon yellow, Next up blue, Later grey). */
+  function urgencyPill(u) {
+    var cls = { 'today': 'u-today', 'tomorrow': 'u-tomorrow', 'soon': 'u-soon', 'next up': 'u-next', 'later': 'u-later' }[String(u).toLowerCase()] || 'u-other';
+    return el('span', 'upill ' + cls, u);
+  }
   function short(s) { s = String(s); return s.length > 40 ? s.slice(0, 38) + '…' : s; }
 
   // ---------- vocabulary (the sheet's own dropdown values) ----------
@@ -352,7 +357,7 @@
       }
       var due = dueLabel(t.due, data.today);
       if (due) meta.appendChild(el('span', 'due ' + due.cls, due.text));
-      if (t.urgency) meta.appendChild(el('span', '', t.urgency));
+      if (t.urgency) meta.appendChild(urgencyPill(t.urgency));
       if (t.order !== '' && t.order !== undefined) meta.appendChild(el('span', '', 'Order ' + t.order));
       if (t.category) meta.appendChild(el('span', 'cat', t.category));
       if (t.project) meta.appendChild(el('span', '', t.project));
@@ -550,11 +555,8 @@
         if (f[k] === before) return;
         if (!f[k]) cleared.push(k); else params[k] = f[k];
       });
-      if (cleared.length) {
-        err.textContent = 'The app can\'t empty a field yet (' + cleared.join(', ') + '). Change it in the sheet, or pick a value.';
-        err.hidden = false; return;
-      }
-      var clears = [];
+      // Emptied fields (e.g. a due date removed) are cleared in the Sheet.
+      var clears = cleared.slice();
       if (depIds(depChoice) !== depIds(editing.dependsOn)) {
         if (depChoice.length) params.depends_on = depIds(depChoice);
         else clears.push('depends_on');
@@ -571,7 +573,7 @@
     }
     if (isDesk() && action === 'update') {
       // Show the change straight away; the Sheet catches up in a second or two.
-      Object.keys(f).forEach(function (k) { if (params[k] !== undefined) editing[k] = f[k]; });
+      Object.keys(f).forEach(function (k) { if (params[k] !== undefined || cleared.indexOf(k) !== -1) editing[k] = f[k]; });
       deskSaving[editing.id] = true;
       $('taskDialog').close();
       render(current, false);
@@ -694,7 +696,7 @@
   // their parent, waiting tasks last), and the edit box docked on the right.
   var deskSaving = {};          // ids whose change is still on its way to the Sheet
   var COLS = [
-    { key: 'thing', label: 'Task' }, { key: 'p', label: 'P' }, { key: 'due', label: 'Due' },
+    { key: 'thing', label: 'Task' }, { key: 'p', label: 'P' }, { key: 'roi', label: 'ROI' }, { key: 'due', label: 'Due' },
     { key: 'urgency', label: 'Urgency' }, { key: 'person', label: 'Person' }, { key: 'project', label: 'Project' },
     { key: 'category', label: 'Category' }, { key: 'status', label: 'Status' }
   ];
@@ -769,9 +771,53 @@
         if (current) render(current, false);
       });
       th.appendChild(b);
+      var w = colWidths()[c.key];
+      if (w) th.style.width = w + 'px';
+      var grip = el('span', 'col-resize');
+      grip.title = 'Drag to change the width. Double-click to reset all widths.';
+      grip.addEventListener('mousedown', function (ev) { startResize(ev, th, c.key); });
+      grip.addEventListener('dblclick', function (ev) {
+        ev.stopPropagation();
+        try { localStorage.removeItem(LS.colw); } catch (e) { /* this visit only */ }
+        if (current) render(current, false);
+      });
+      th.appendChild(grip);
       tr.appendChild(th);
     });
     head.appendChild(tr);
+    head.parentNode.classList.toggle('fixed', Object.keys(colWidths()).length > 0);
+  }
+
+  function colWidths() { try { return JSON.parse(localStorage.getItem(LS.colw)) || {}; } catch (e) { return {}; } }
+  function startResize(ev, th, key) {
+    ev.preventDefault(); ev.stopPropagation();
+    var table = th.closest('table');
+    // First drag: freeze every column at its current width so only this one moves.
+    // The Task column stays flexible: it takes whatever width is left, so the
+    // table always fits the window (unless you drag Task itself).
+    var widths = colWidths();
+    if (!Object.keys(widths).length) {
+      COLS.forEach(function (c) {
+        if (c.key === 'thing' && key !== 'thing') return;
+        var h = table.querySelector('th.c-' + c.key);
+        if (h) { widths[c.key] = Math.round(h.getBoundingClientRect().width); h.style.width = widths[c.key] + 'px'; }
+      });
+      table.classList.add('fixed');
+    }
+    var x0 = ev.clientX, w0 = widths[key] || Math.round(th.getBoundingClientRect().width);
+    document.body.classList.add('resizing');
+    var move = function (e) {
+      widths[key] = Math.max(40, Math.round(w0 + e.clientX - x0));
+      th.style.width = widths[key] + 'px';
+    };
+    var up = function () {
+      document.removeEventListener('mousemove', move);
+      document.removeEventListener('mouseup', up);
+      document.body.classList.remove('resizing');
+      try { localStorage.setItem(LS.colw, JSON.stringify(widths)); } catch (e) { /* this visit only */ }
+    };
+    document.addEventListener('mousemove', move);
+    document.addEventListener('mouseup', up);
   }
 
   function markSelected(id) {
@@ -894,7 +940,7 @@
       var cells = {
         p: t.p ? el('span', 'pill ' + t.p, t.p) : null,
         due: due ? el('span', 'due ' + due.cls, due.text) : null,
-        urgency: t.urgency || '', person: t.person || '', project: t.project || '',
+        roi: t.roi || '', urgency: t.urgency ? urgencyPill(t.urgency) : null, person: t.person || '', project: t.project || '',
         category: t.category || '', status: t.status ? t.status.replace(/^[A-Z]_/, '') : ''
       };
       COLS.slice(1).forEach(function (c) {
