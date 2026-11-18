@@ -255,3 +255,10 @@ body.moving-col, body.moving-col * { cursor: grabbing !important; user-select: n
 .date-clear { flex: none; width: 40px; border: 1px solid var(--line); border-radius: 10px; background: var(--bg); color: var(--muted);
   font-size: 1.3rem; line-height: 1; cursor: pointer; }
 .date-clear:hover { color: var(--overdue); border-color: var(--overdue); }
+
+/* Save at the top of the edit box (18 Nov 2026) */
+.dlg-head { position: sticky; top: -18px; z-index: 3; display: flex; align-items: center; gap: 8px;
+  margin: -18px -16px 12px; padding: 14px 16px 10px; background: var(--card); border-bottom: 1px solid var(--line); }
+.dlg-head h2 { flex: 1; min-width: 0; margin: 0; font-size: 1.1rem; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.dlg-head .btn { min-height: 40px; padding: 0 14px; }
+dialog.side .dlg-head { top: -18px; }

@@ -82,7 +82,13 @@
   <!-- Add / edit a task -->
   <dialog id="taskDialog">
     <form id="taskForm" method="dialog">
-      <h2 id="taskTitle">Add a task</h2>
+      <!-- Title, Cancel and Save stay at the top while the form scrolls (18 Nov 2026) -->
+      <div class="dlg-head">
+        <h2 id="taskTitle">Add a task</h2>
+        <button type="button" id="taskCancel" class="btn">Cancel</button>
+        <button type="submit" id="taskSave" class="btn primary">Save</button>
+      </div>
+      <p id="taskError" class="form-error" hidden></p>
       <label>Task
         <textarea id="fThing" rows="3" required></textarea>
       </label>
@@ -123,11 +129,6 @@
       <label>Notes
         <textarea id="fNotes" rows="2"></textarea>
       </label>
-      <p id="taskError" class="form-error" hidden></p>
-      <div class="actions">
-        <button type="button" id="taskCancel" class="btn">Cancel</button>
-        <button type="submit" id="taskSave" class="btn primary">Save</button>
-      </div>
     </form>
   </dialog>
 
