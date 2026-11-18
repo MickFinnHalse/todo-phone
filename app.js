@@ -433,7 +433,7 @@
     $('taskTitle').textContent = t ? 'Edit task' : underParent ? 'Add a sub-task to "' + short(underParent.thing) + '"' : 'Add a task';
     $('fThing').value = t ? t.thing : '';
     fillSelect($('fP'), priorities(), t ? t.p : 'P1');
-    $('fDue').value = t ? (t.due || '') : (current && current.today) || '';
+    $('fDue').value = t ? (t.due || '') : '';   // new tasks start with no due date (owner, 18 Nov 2026)
     fillSelect($('fUrgency'), v.urgency || URGENCY_ORDER, t ? t.urgency : '', '—');
     // A phone writes one person per task; a shared task (two names) keeps its value unless changed.
     fillSelect($('fPerson'), people, t ? t.person : me());
