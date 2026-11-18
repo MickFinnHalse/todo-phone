@@ -32,8 +32,8 @@
 
   <main id="main">
     <section id="setup" class="panel" hidden>
-      <h2>Set up this phone</h2>
-      <p>You need the setup link you were sent. It connects this app to the to-do list once, and the phone remembers it.</p>
+      <h2>Set up this device</h2>
+      <p>You need the setup link you were sent. It connects this app to the to-do list once, and this device remembers it.</p>
       <p>Press and hold the link in your message, choose <b>Copy link</b>, then paste it here:</p>
       <form id="setupForm" class="setup-form">
         <input id="setupPaste" type="text" autocomplete="off" autocapitalize="off" spellcheck="false" placeholder="Paste the setup link">
@@ -43,7 +43,7 @@
 
     <section id="picker" class="panel" hidden>
       <h2>Who are you?</h2>
-      <p class="muted">This only chooses whose tasks you see on this phone. It doesn't change anyone else's view or the sheet.</p>
+      <p class="muted">This only chooses whose tasks you see on this device. It doesn't change anyone else's view or the sheet.</p>
       <div id="people" class="people"></div>
     </section>
 
@@ -135,7 +135,7 @@
   <dialog id="sortDialog">
     <form id="sortForm" method="dialog">
       <h2>Sort</h2>
-      <p class="muted">Only changes the order on this phone. The sheet and everyone else's order stay as they are.</p>
+      <p class="muted">Only changes the order on this device. The sheet and everyone else's order stay as they are.</p>
       <div id="presets" class="presets"></div>
       <label class="check"><input type="checkbox" id="hideWaiting"> Hide tasks that are waiting on another task</label>
       <h3>Custom</h3>
@@ -153,11 +153,11 @@
       <h2>More</h2>
       <h3>Appearance</h3>
       <div class="theme-pick" role="group" aria-label="Appearance">
-        <button type="button" data-theme-choice="auto">Follow phone</button>
+        <button type="button" data-theme-choice="auto">Follow device</button>
         <button type="button" data-theme-choice="light">Light</button>
         <button type="button" data-theme-choice="dark">Dark</button>
       </div>
-      <button type="button" id="shareSetupBtn" class="btn wide">Set up another phone</button>
+      <button type="button" id="shareSetupBtn" class="btn wide">Set up another device</button>
       <button type="button" id="clearDoneBtn" class="btn wide">Clear done</button>
       <p class="muted">Moves every task marked Z-Done in the sheet to the Done tab, the same as asking Claude to "clear done".</p>
       <div class="actions"><button type="submit" class="btn">Close</button></div>
@@ -167,8 +167,8 @@
   <!-- Set up another phone: QR code (in person) or share the link (not in person) -->
   <dialog id="shareDialog">
     <form method="dialog">
-      <h2>Set up another phone</h2>
-      <p class="muted"><b>With you:</b> they point their phone camera at this code and tap the link it shows.</p>
+      <h2>Set up another device</h2>
+      <p class="muted"><b>With you, on a phone:</b> they point their phone camera at this code and tap the link it shows.</p>
       <div id="qrBox" class="qr-box" aria-label="Setup QR code"></div>
       <p class="muted"><b>Not with you:</b> tap Share link and send it to them privately. They tap the link in the message.</p>
       <p class="muted">Anyone with this link can see and change the to-do list, so only send it to people you trust.</p>

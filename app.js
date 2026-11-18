@@ -63,7 +63,7 @@
     if (!/setup(=|%3D)/i.test(location.href)) return;
     var ok = applySetup(location.href);
     history.replaceState(null, '', location.pathname); // drop the key from the address bar
-    if (ok) notice('This phone is set up.', false);
+    if (ok) notice('This device is set up.', false);
     else notice('That setup link didn\'t work. Ask the person who set this up to send it again.', true);
   }
 
@@ -71,7 +71,7 @@
     var ok = applySetup($('setupPaste').value);
     $('setupPaste').value = '';
     if (!ok) { notice('That isn\'t a working setup link. Copy the whole link and paste it again.', true); return; }
-    notice('This phone is set up.', false);
+    notice('This device is set up.', false);
     loadList();
   }
 
@@ -98,7 +98,7 @@
 
   function openShareDialog() {
     var link = setupLinkFromThisPhone();
-    if (!link) { toast('This phone isn\'t set up, so it has no link to share.', true); return; }
+    if (!link) { toast('This device isn\'t set up, so it has no link to share.', true); return; }
     $('menuDialog').close();
     try { $('qrBox').innerHTML = qrSvg(link); } catch (e) { $('qrBox').textContent = 'Couldn\'t draw the code. Use Share link instead.'; }
     $('shareDialog').showModal();
@@ -107,13 +107,13 @@
   function shareSetupLink() {
     var link = setupLinkFromThisPhone();
     if (navigator.share) {
-      navigator.share({ title: 'To-do app setup', text: 'Tap this link on your phone to set up the To-do app:', url: link })
+      navigator.share({ title: 'To-do app setup', text: 'Open this link on your phone or computer to set up the To-do app:', url: link })
         .catch(function (e) { if (e && e.name !== 'AbortError') toast('Couldn\'t open sharing. Try again.', true); });
     } else if (navigator.clipboard) {
       navigator.clipboard.writeText(link).then(function () { toast('Link copied. Paste it into a private message.', false); },
         function () { toast('Couldn\'t copy the link.', true); });
     } else {
-      toast('This phone can\'t share links from here.', true);
+      toast('This device can\'t share links from here. Use the QR code instead.', true);
     }
   }
 
@@ -156,7 +156,7 @@
     }).catch(function (e) {
       toast(e.code === 'network'
         ? 'Couldn\'t reach the list. Check your connection, then refresh to see whether it saved.'
-        : e.code === 'auth' ? 'This phone\'s app key isn\'t accepted. Ask for a new setup link.'
+        : e.code === 'auth' ? 'This device\'s app key isn\'t accepted. Ask for a new setup link.'
           : e.message, true);
       throw e;
     }).finally(function () { spin(false); });
@@ -551,7 +551,7 @@
         if (!f[k]) cleared.push(k); else params[k] = f[k];
       });
       if (cleared.length) {
-        err.textContent = 'The phone can\'t empty a field yet (' + cleared.join(', ') + '). Change it in the sheet, or pick a value.';
+        err.textContent = 'The app can\'t empty a field yet (' + cleared.join(', ') + '). Change it in the sheet, or pick a value.';
         err.hidden = false; return;
       }
       var clears = [];
@@ -656,7 +656,7 @@
       render(data, false);
     }).catch(function (e) {
       if (e.code === 'setup') { show('setup'); return; }
-      if (e.code === 'auth') { notice('This phone\'s app key isn\'t accepted any more. Ask the person who set this up for a new setup link.', true); return; }
+      if (e.code === 'auth') { notice('This device\'s app key isn\'t accepted any more. Ask the person who set this up for a new setup link.', true); return; }
       notice(e.code === 'network'
         ? (cached ? 'No connection. Showing the last saved list; changes need a connection.' : 'No connection. Try again when you have signal.')
         : e.message, true);
@@ -685,7 +685,7 @@
     }).catch(function (e) {
       if (e.code === 'setup') { show('setup'); return; }
       box.textContent = '';
-      notice(e.code === 'auth' ? 'This phone\'s app key isn\'t accepted. Ask the person who set this up for a new setup link.' : 'Couldn\'t load the names. Check your connection and try again.', true);
+      notice(e.code === 'auth' ? 'This device\'s app key isn\'t accepted. Ask the person who set this up for a new setup link.' : 'Couldn\'t load the names. Check your connection and try again.', true);
     });
   }
 
