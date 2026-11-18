@@ -262,3 +262,11 @@ body.moving-col, body.moving-col * { cursor: grabbing !important; user-select: n
 .dlg-head h2 { flex: 1; min-width: 0; margin: 0; font-size: 1.1rem; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
 .dlg-head .btn { min-height: 40px; padding: 0 14px; }
 dialog.side .dlg-head { top: -18px; }
+
+/* Sub-task rows: the tick indented under the parent, joined by an elbow line (18 Nov 2026) */
+.grid .tline .elbow { flex: none; width: 14px; height: 13px; margin: -6px 2px 0 6px; border-left: 2px solid var(--muted);
+  border-bottom: 2px solid var(--muted); border-bottom-left-radius: 5px; opacity: .7; align-self: flex-start; }
+.grid .tline .tick { flex: none; width: 26px; height: 22px; margin: 0; }
+.grid .tline .tick span { width: 18px; height: 18px; }
+.grid tr.row.pending .tline .tick span { background: var(--brand); border-color: var(--brand); }
+.grid tr.row.pending .tline .tick svg { visibility: visible; }

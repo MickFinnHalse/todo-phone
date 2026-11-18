@@ -952,12 +952,15 @@
       circle.innerHTML = '<svg viewBox="0 0 24 24" aria-hidden="true"><path d="M9 16.2 4.8 12l-1.4 1.4L9 19 21 7l-1.4-1.4z"/></svg>';
       tick.appendChild(circle);
       tick.addEventListener('click', function (ev) { ev.stopPropagation(); toggleDone(t, tr); });
-      tdTick.appendChild(tick);
+      // A sub-task's tick sits indented under its parent, after an elbow line
+      // (└), so it reads as part of the task above.
+      if (!item.depth) tdTick.appendChild(tick);
       tr.appendChild(tdTick);
 
       var tdT = el('td', 'c-thing');
       var line = el('div', 'tline');
-      line.style.paddingLeft = (item.depth * 22) + 'px';
+      line.style.paddingLeft = (item.depth ? (item.depth - 1) * 26 : 0) + 'px';
+      if (item.depth) { line.appendChild(el('span', 'elbow')); line.appendChild(tick); }
       if (item.kids) {
         var tog = el('button', 'fold', fold[t.id] ? '▸' : '▾');
         tog.type = 'button';
@@ -968,7 +971,7 @@
           setFolded(f); render(current, false);
         });
         line.appendChild(tog);
-      } else if (item.depth) line.appendChild(el('span', 'fold-gap'));
+      }
       line.appendChild(el('span', 'tname', t.thing));
       if (t.sub && t.sub.total) {
         var allDone = !t.sub.open.length;
@@ -982,7 +985,7 @@
       if (t.parentOf && (q || !(items.some(function (x) { return x.t.id === t.parentOf.id; })))) sub.push(el('span', '', 'Part of: ' + t.parentOf.thing + (t.parentOf.done ? ' (done)' : '')));
       sub.push(el('span', 'undo-note', 'Marked done. Click the tick again to undo.'));   // shown only while ticked
       if (sub.length) {
-        var dl = el('div', 'tsub'); dl.style.paddingLeft = (item.depth * 22 + 20) + 'px';
+        var dl = el('div', 'tsub'); dl.style.paddingLeft = (item.depth ? (item.depth - 1) * 26 + 54 : 20) + 'px';
         sub.forEach(function (x) { dl.appendChild(x); });
         tdT.appendChild(dl);
       }
