@@ -235,6 +235,37 @@
     menu.style.top = (r.bottom + 4 + h > window.innerHeight ? Math.max(8, r.top - h - 4) : r.bottom + 4) + 'px';
     (menu.querySelector('.qopt.current') || menu.querySelector('.qopt')).focus();
   }
+  /** Delete a task (after asking). It leaves the list for good; the Sheet's log keeps a copy. */
+  function deleteTask(t) {
+    var more = [];
+    var kids = t.sub && t.sub.open ? t.sub.open.length : 0;   // open ones only: done ones are already off the list
+    if (kids) more.push(kids === 1 ? 'Its sub-task stays, as a normal task.' : 'Its ' + kids + ' sub-tasks stay, as normal tasks.');
+    if (t.blocking && t.blocking.length) more.push('Tasks waiting on it stop waiting.');
+    if (!window.confirm('Delete "' + short(t.thing) + '"?\n\nThis removes it from the list; it is not marked done.' + (more.length ? '\n' + more.join(' ') : ''))) return;
+    if ($('taskDialog').open) $('taskDialog').close();
+    if (isDesk()) { deskSaving[t.id] = true; render(current, false); }
+    write('delete', { id: t.id }, 'Deleted: ' + short(t.thing)).catch(function () { deskSaving = {}; loadList(); });
+  }
+  /** Right-click a task row on the laptop: Edit or Delete. */
+  function rowMenu(ev, t) {
+    ev.preventDefault(); ev.stopPropagation();
+    closeQuickPick();
+    if (pendingDone[t.id]) return;
+    var menu = el('div', 'qpick rowmenu');
+    menu.setAttribute('role', 'menu');
+    [['Edit', function () { openTaskDialog(t); }], ['Delete task', function () { deleteTask(t); }, 'danger']].forEach(function (o) {
+      var b = el('button', 'qopt' + (o[2] ? ' ' + o[2] : ''), o[0]);
+      b.type = 'button';
+      b.setAttribute('role', 'menuitem');
+      b.addEventListener('click', function (e) { e.stopPropagation(); closeQuickPick(); o[1](); });
+      menu.appendChild(b);
+    });
+    document.body.appendChild(menu);
+    quickMenu = menu;
+    menu.style.left = Math.max(8, Math.min(ev.clientX, window.innerWidth - menu.offsetWidth - 8)) + 'px';
+    menu.style.top = Math.max(8, Math.min(ev.clientY, window.innerHeight - menu.offsetHeight - 8)) + 'px';
+    menu.querySelector('.qopt').focus();
+  }
   function setQuick(t, field, value) {
     if ((t[field] || '') === value) return;
     var params = { id: t.id };
@@ -520,6 +551,7 @@
       if (underParent.person && underParent.person.indexOf(',') === -1) fillSelect($('fPerson'), people, underParent.person);
     }
     $('addSubBtn').hidden = !t;
+    if ($('taskDelete')) $('taskDelete').hidden = !t;
     $('taskError').hidden = true;
     $('taskSave').disabled = false;
     var dlg = $('taskDialog');
@@ -1073,6 +1105,7 @@
         tr.appendChild(td);
       });
       tr.addEventListener('click', function () { if (!pendingDone[t.id]) openTaskDialog(t); });
+      tr.addEventListener('contextmenu', function (ev) { rowMenu(ev, t); });
       body.appendChild(tr);
     });
     show('list');
@@ -1153,6 +1186,7 @@
   $('fDepAdd').addEventListener('change', addDep);
   // One click removes the due date (no clearing day, month and year one by one).
   $('fDueClear').addEventListener('click', function (ev) { ev.preventDefault(); $('fDue').value = ''; $('fDue').focus(); });
+  if ($('taskDelete')) $('taskDelete').addEventListener('click', function () { if (editing) deleteTask(editing); });
   $('addSubBtn').addEventListener('click', function () {
     var parent = editing;
     if (!parent) return;
@@ -1191,5 +1225,24 @@
   show('setup');
   if (localStorage.getItem(LS.api) && localStorage.getItem(LS.key)) loadList();
 
-  if ('serviceWorker' in navigator) navigator.serviceWorker.register('sw.js').catch(function () { /* app still works without it */ });
+  // Updates land by themselves (19 Nov 2026): an installed app window can stay
+  // open for days, so look for a new release whenever it comes back into view
+  // (and every half hour), and reload onto it as soon as nothing is mid-edit.
+  if ('serviceWorker' in navigator) {
+    var hadWorker = !!navigator.serviceWorker.controller, updateWaiting = false;
+    var reloadForUpdate = function () {
+      if ($('taskDialog').open || Object.keys(deskSaving).length || Object.keys(pendingDone).length) { updateWaiting = true; return; }
+      location.reload();
+    };
+    navigator.serviceWorker.addEventListener('controllerchange', function () {
+      if (hadWorker) reloadForUpdate();   // the very first install needs no reload
+      hadWorker = true;
+    });
+    setInterval(function () { if (updateWaiting) { updateWaiting = false; reloadForUpdate(); } }, 5000);
+    navigator.serviceWorker.register('sw.js').then(function (reg) {
+      var check = function () { reg.update().catch(function () { /* offline: try again later */ }); };
+      document.addEventListener('visibilitychange', function () { if (document.visibilityState === 'visible') check(); });
+      setInterval(check, 30 * 60 * 1000);
+    }).catch(function () { /* app still works without it */ });
+  }
 })();

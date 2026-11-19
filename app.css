@@ -292,3 +292,8 @@ dialog.side .dlg-head { top: -18px; }
 .qpick .qopt:hover, .qpick .qopt:focus-visible { background: color-mix(in srgb, var(--brand) 14%, transparent); outline: none; }
 .qpick .qopt.current { box-shadow: inset 0 0 0 2px var(--brand); }
 .qpick .qnone { color: var(--muted); font-size: .9em; }
+
+/* Delete a task: button in the edit box, right-click menu on the laptop (19 Nov 2026) */
+.btn.danger { color: var(--overdue); border-color: var(--overdue); background: transparent; margin-top: 14px; }
+.qpick .qopt.danger { color: var(--overdue); }
+.rowmenu { min-width: 150px; }
