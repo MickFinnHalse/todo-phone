@@ -297,3 +297,11 @@ dialog.side .dlg-head { top: -18px; }
 .btn.danger { color: var(--overdue); border-color: var(--overdue); background: transparent; margin-top: 14px; }
 .qpick .qopt.danger { color: var(--overdue); }
 .rowmenu { min-width: 150px; }
+
+/* Ticked sub-tasks stay under their open parent until it is ticked (19 Nov 2026) */
+.tick.ticked span { background: var(--brand); border-color: var(--brand); }
+.tick.ticked svg { visibility: visible; }
+.done-sub .thing, .grid tr.done-sub .tname { text-decoration: line-through; color: var(--muted); }
+.grid tr.done-sub { cursor: default; }
+.grid tr.done-sub td { opacity: .85; }
+.done-sub.saving, .grid tr.done-sub.saving { opacity: .5; pointer-events: none; }

@@ -235,6 +235,29 @@
     menu.style.top = (r.bottom + 4 + h > window.innerHeight ? Math.max(8, r.top - h - 4) : r.bottom + 4) + 'px';
     (menu.querySelector('.qopt.current') || menu.querySelector('.qopt')).focus();
   }
+  /** Ticked sub-tasks of an open task: they stay listed (ticked) under it until it is ticked itself. */
+  function doneSubs(t) {
+    return ((t.sub && t.sub.doneList) || []).filter(function (d) { return d.id; })
+      .map(function (d) { return { id: d.id, thing: d.thing, doneSub: true, parentP: t.p }; });
+  }
+  /** The ticked circle of a done sub-task: click it to make the sub-task open again. */
+  function doneTick(d, rowEl) {
+    var b = el('button', 'tick ticked');
+    b.type = 'button';
+    b.title = 'Done. Click to make it not done again.';
+    b.setAttribute('aria-label', 'Not done after all: ' + d.thing);
+    var c = el('span');
+    c.innerHTML = '<svg viewBox="0 0 24 24" aria-hidden="true"><path d="M9 16.2 4.8 12l-1.4 1.4L9 19 21 7l-1.4-1.4z"/></svg>';
+    b.appendChild(c);
+    b.addEventListener('click', function (ev) {
+      ev.stopPropagation();
+      rowEl.classList.add('saving');
+      var params = { id: d.id };
+      if (d.parentP) params.p = d.parentP;   // ticking it overwrote its own priority
+      write('restore', params, 'Not done: ' + short(d.thing)).catch(function () { rowEl.classList.remove('saving'); });
+    });
+    return b;
+  }
   /** Delete a task (after asking). It leaves the list for good; the Sheet's log keeps a copy. */
   function deleteTask(t) {
     var more = [];
@@ -402,6 +425,7 @@
       seen[t.id] = true;
       if (!hidden) items.push({ t: t, depth: depth, section: section });
       (kidsOf[t.id] || []).forEach(function (k) { walk(k, depth + 1, section, hidden); });
+      if (!hidden) doneSubs(t).forEach(function (d) { items.push({ t: d, depth: depth + 1, section: section, doneSub: true }); });
     };
     tops.filter(function (t) { return !isWaiting(t); }).forEach(function (t) { walk(t, 0, 'ready', false); });
     tops.filter(isWaiting).forEach(function (t) { walk(t, 0, 'waiting', hide); });
@@ -419,6 +443,15 @@
     items.forEach(function (item) {
       var t = item.t;
       if (item.section === 'waiting' && !dividerDone) { ul.appendChild(el('li', 'divider', 'Waiting on another task')); dividerDone = true; }
+      if (item.doneSub) {
+        var dli = el('li', 'task sub done-sub depth-' + Math.min(item.depth, 3));
+        dli.appendChild(doneTick(t, dli));
+        var dbody = el('div', 'body');
+        dbody.appendChild(el('div', 'thing', t.thing));
+        dli.appendChild(dbody);
+        ul.appendChild(dli);
+        return;
+      }
       var li = el('li', 'task' + (isWaiting(t) ? ' waiting' : '') + (item.depth ? ' sub depth-' + Math.min(item.depth, 3) : ''));
       li.dataset.id = t.id;
       if (pendingDone[t.id]) li.classList.add('pending');
@@ -1005,8 +1038,10 @@
         if (seen[t.id]) return;
         seen[t.id] = true;
         var kids = kidsOf[t.id] || [];
-        if (!hidden) items.push({ t: t, depth: depth, section: section, kids: kids.length });
+        var done = doneSubs(t);
+        if (!hidden) items.push({ t: t, depth: depth, section: section, kids: kids.length + done.length });
         kids.forEach(function (k) { walk(k, depth + 1, section, hidden || !!fold[t.id]); });
+        if (!hidden && !fold[t.id]) done.forEach(function (d) { items.push({ t: d, depth: depth + 1, section: section, kids: 0, doneSub: true }); });
       };
       var waitLast = v.type !== 'waiting';
       tops.filter(function (t) { return !waitLast || !isWaitingT(t); }).forEach(function (t) { walk(t, 0, 'ready', false); });
@@ -1034,6 +1069,22 @@
       if (item.section === 'waiting' && !dividerDone) {
         var trd = el('tr', 'divider-row'); var tdd = el('td', '', 'Waiting on another task');
         tdd.colSpan = COLS.length + 1; trd.appendChild(tdd); body.appendChild(trd); dividerDone = true;
+      }
+      if (item.doneSub) {
+        var dtr = el('tr', 'row done-sub');
+        dtr.appendChild(el('td', 'c-tick'));
+        orderedCols().forEach(function (c) {
+          if (c.key !== 'thing') { dtr.appendChild(el('td', 'c-' + c.key)); return; }
+          var dtd = el('td', 'c-thing'), dline = el('div', 'tline');
+          dline.style.paddingLeft = (item.depth - 1) * 26 + 'px';
+          dline.appendChild(el('span', 'elbow'));
+          dline.appendChild(doneTick(t, dtr));
+          dline.appendChild(el('span', 'tname', t.thing));
+          dtd.appendChild(dline);
+          dtr.appendChild(dtd);
+        });
+        body.appendChild(dtr);
+        return;
       }
       var tr = el('tr', 'row' + (isWaitingT(t) ? ' waiting' : '') + (pendingDone[t.id] ? ' pending' : '') +
         (deskSaving[t.id] ? ' saving-soft' : '') + (t.id === editingId ? ' selected' : ''));
