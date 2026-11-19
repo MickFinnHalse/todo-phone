@@ -202,6 +202,62 @@
     var cls = { 'today': 'u-today', 'tomorrow': 'u-tomorrow', 'soon': 'u-soon', 'next up': 'u-next', 'later': 'u-later' }[String(u).toLowerCase()] || 'u-other';
     return el('span', 'upill ' + cls, u);
   }
+
+  // ---------- quick pick: click a priority or urgency to change just that ----------
+  var quickMenu = null;
+  function closeQuickPick() { if (quickMenu) { quickMenu.remove(); quickMenu = null; } }
+  function quickPick(ev, t, field) {
+    ev.stopPropagation();
+    if (pendingDone[t.id]) return;
+    var again = quickMenu && quickMenu.dataset.key === t.id + '|' + field;
+    closeQuickPick();
+    if (again) return;   // a second click on the same cell just closes the list
+    var v = vocab() || {};
+    var opts = field === 'p' ? priorities() : (v.urgency && v.urgency.length ? v.urgency : URGENCY_ORDER);
+    var menu = el('div', 'qpick');
+    menu.dataset.key = t.id + '|' + field;
+    menu.setAttribute('role', 'menu');
+    menu.setAttribute('aria-label', (field === 'p' ? 'Priority' : 'Urgency') + ' for ' + t.thing);
+    var add = function (value, content) {
+      var b = el('button', 'qopt' + ((t[field] || '') === value ? ' current' : ''));
+      b.type = 'button';
+      b.setAttribute('role', 'menuitem');
+      b.appendChild(content);
+      b.addEventListener('click', function (e) { e.stopPropagation(); closeQuickPick(); setQuick(t, field, value); });
+      menu.appendChild(b);
+    };
+    opts.forEach(function (o) { add(o, field === 'p' ? el('span', 'pill ' + o, o) : urgencyPill(o)); });
+    if (field === 'urgency') add('', el('span', 'qnone', 'No urgency'));
+    document.body.appendChild(menu);
+    quickMenu = menu;
+    var r = ev.currentTarget.getBoundingClientRect(), h = menu.offsetHeight, w = menu.offsetWidth;
+    menu.style.left = Math.max(8, Math.min(r.left, window.innerWidth - w - 8)) + 'px';
+    menu.style.top = (r.bottom + 4 + h > window.innerHeight ? Math.max(8, r.top - h - 4) : r.bottom + 4) + 'px';
+    (menu.querySelector('.qopt.current') || menu.querySelector('.qopt')).focus();
+  }
+  function setQuick(t, field, value) {
+    if ((t[field] || '') === value) return;
+    var params = { id: t.id };
+    if (value) params[field] = value; else params.clear = field;
+    var okText = (field === 'p' ? 'Priority ' : 'Urgency ') + (value || 'removed') + ': ' + short(t.thing);
+    t[field] = value;   // show it straight away; the Sheet catches up in a second or two
+    if (isDesk()) deskSaving[t.id] = true;
+    render(current, false);
+    write('update', params, okText).catch(function () { deskSaving = {}; loadList(); });
+  }
+  document.addEventListener('click', closeQuickPick);
+  window.addEventListener('resize', closeQuickPick);
+  window.addEventListener('scroll', closeQuickPick, true);
+  document.addEventListener('keydown', function (ev) {
+    if (!quickMenu) return;
+    if (ev.key === 'Escape') { ev.stopPropagation(); closeQuickPick(); return; }
+    if (ev.key === 'ArrowDown' || ev.key === 'ArrowUp') {
+      ev.preventDefault();
+      var items = Array.prototype.slice.call(quickMenu.querySelectorAll('.qopt'));
+      var i = items.indexOf(document.activeElement);
+      items[(i + (ev.key === 'ArrowDown' ? 1 : items.length - 1)) % items.length].focus();
+    }
+  }, true);
   function short(s) { s = String(s); return s.length > 40 ? s.slice(0, 38) + '…' : s; }
 
   // ---------- vocabulary (the sheet's own dropdown values) ----------
@@ -350,14 +406,20 @@
       body.tabIndex = 0;
       body.appendChild(el('div', 'thing', t.thing));
       var meta = el('div', 'meta');
-      if (t.p) meta.appendChild(el('span', 'pill ' + t.p, t.p));
+      // Tap the priority or urgency oval to change just that.
+      var quickPill = function (pill, field) {
+        pill.classList.add('quick');
+        pill.addEventListener('click', function (ev) { quickPick(ev, t, field); });
+        return pill;
+      };
+      if (t.p) meta.appendChild(quickPill(el('span', 'pill ' + t.p, t.p), 'p'));
       if (t.sub && t.sub.total) {
         var allDone = !t.sub.open.length;
         meta.appendChild(el('span', 'progress' + (allDone ? ' all' : ''), allDone ? (t.sub.total === 1 ? 'Sub-task done' : 'All ' + t.sub.total + ' sub-tasks done') : t.sub.done + ' of ' + t.sub.total + ' done'));
       }
       var due = dueLabel(t.due, data.today);
       if (due) meta.appendChild(el('span', 'due ' + due.cls, due.text));
-      if (t.urgency) meta.appendChild(urgencyPill(t.urgency));
+      if (t.urgency) meta.appendChild(quickPill(urgencyPill(t.urgency), 'urgency'));
       if (t.order !== '' && t.order !== undefined) meta.appendChild(el('span', '', 'Order ' + t.order));
       if (t.category) meta.appendChild(el('span', 'cat', t.category));
       if (t.project) meta.appendChild(el('span', '', t.project));
@@ -1002,6 +1064,12 @@
         if (c.key === 'thing') { tr.appendChild(tdT); return; }
         var td = el('td', 'c-' + c.key), val = cells[c.key];
         if (val && val.nodeType) td.appendChild(val); else td.textContent = val || '';
+        if (c.key === 'p' || c.key === 'urgency') {
+          // Click to change just this, without opening the edit box.
+          td.classList.add('quick');
+          td.title = 'Click to change the ' + (c.key === 'p' ? 'priority' : 'urgency');
+          td.addEventListener('click', function (ev) { quickPick(ev, t, c.key); });
+        }
         tr.appendChild(td);
       });
       tr.addEventListener('click', function () { if (!pendingDone[t.id]) openTaskDialog(t); });
