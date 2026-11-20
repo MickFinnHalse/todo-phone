@@ -803,14 +803,26 @@
       v.person.filter(function (p) { return p !== '?'; }).forEach(function (p) {
         var b = el('button', '', p);
         b.type = 'button';
-        b.setAttribute('aria-pressed', String(p === currentPerson));
+        b.setAttribute('aria-pressed', String(p === currentPerson && !(isDesk() && deskScope() === 'all')));
         b.addEventListener('click', function () {
           localStorage.setItem(LS.person, p);
+          try { localStorage.setItem(LS.scope, 'me'); } catch (e) { /* this visit only */ }
           $('list').hidden = true;
           loadList();
         });
         box.appendChild(b);
       });
+      if (isDesk() && currentPerson) {   // the laptop can also show every list at once
+        var all = el('button', '', 'Everyone');
+        all.type = 'button';
+        all.setAttribute('aria-pressed', String(deskScope() === 'all'));
+        all.addEventListener('click', function () {
+          try { localStorage.setItem(LS.scope, 'all'); } catch (e) { /* this visit only */ }
+          $('list').hidden = true;
+          loadList();
+        });
+        box.appendChild(all);
+      }
     }).catch(function (e) {
       if (e.code === 'setup') { show('setup'); return; }
       box.textContent = '';
@@ -1005,15 +1017,43 @@
     });
   }
 
+  /** The laptop's "List of" pick-list: every person, then Everyone. */
+  var EVERYONE = '*everyone';
+  function fillWhoPick() {
+    var sel = $('whoPick'); if (!sel) return;
+    var people = ((vocab() || {}).person || []).filter(function (p) { return p && p !== '?'; });
+    if (me() && people.indexOf(me()) < 0) people.unshift(me());
+    var want = people.join('|');
+    if (sel.dataset.list !== want) {
+      sel.textContent = '';
+      people.forEach(function (p) { var o = el('option', '', p); o.value = p; sel.appendChild(o); });
+      var all = el('option', '', 'Everyone'); all.value = EVERYONE; sel.appendChild(all);
+      sel.dataset.list = want;
+    }
+    sel.value = deskScope() === 'all' ? EVERYONE : me();
+  }
+  /** Hot-swap whose app this is: a person (their list; new tasks and changes go
+   *  in as them) or Everyone (all lists; new tasks still default to the last person). */
+  function switchTo(value) {
+    try {
+      if (value === EVERYONE) localStorage.setItem(LS.scope, 'all');
+      else { localStorage.setItem(LS.person, value); localStorage.setItem(LS.scope, 'me'); }
+    } catch (e) { /* this visit only */ }
+    var v = deskView(); if (v.type === 'person') setDeskView({ type: 'all' });
+    $('who').textContent = me();
+    var cached = localStorage.getItem(LS.cache(listKey()));
+    if (cached) { try { render(JSON.parse(cached), true); } catch (e) { /* the fresh list follows */ } }
+    else if (current) fillWhoPick();
+    loadList();
+  }
+
   function renderDesk(data, fromCache) {
     current = data;
     var today = data.today, v = deskView();
     var q = ($('search').value || '').trim().toLowerCase();
     var all = sortTasks(data.tasks || []);
     var fold = folded();
-    Array.prototype.forEach.call(document.querySelectorAll('.seg [data-scope]'), function (b) {
-      b.setAttribute('aria-pressed', String(b.getAttribute('data-scope') === deskScope()));
-    });
+    fillWhoPick();
     renderViews(all, today);
     renderHead();
     setTimeout(pinHeadings, 0);
@@ -1190,13 +1230,7 @@
 
   // Laptop wiring
   $('search').addEventListener('input', function () { if (current) render(current, false); });
-  Array.prototype.forEach.call(document.querySelectorAll('.seg [data-scope]'), function (b) {
-    b.addEventListener('click', function () {
-      try { localStorage.setItem(LS.scope, b.getAttribute('data-scope')); } catch (e) { /* this visit only */ }
-      var v = deskView(); if (v.type === 'person') setDeskView({ type: 'all' });
-      loadList();
-    });
-  });
+  if ($('whoPick')) $('whoPick').addEventListener('change', function () { switchTo(this.value); });
   $('deskAdd').addEventListener('click', function () { openTaskDialog(null); });
   // When the panel closes (Save, Cancel, Escape), the list takes the full width again.
   // Watched on the "open" attribute itself: the dialog's close event did not fire reliably.

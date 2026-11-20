@@ -187,6 +187,10 @@ body.desk.panel-open #desk { padding-right: 440px; }
 .grid-bar { display: flex; gap: 10px; align-items: center; margin-bottom: 6px; }
 .grid-bar input[type=search] { flex: 1; min-width: 0; max-width: 420px; padding: 9px 12px; border: 1px solid var(--line); border-radius: 10px;
   background: var(--card); color: var(--ink); font: inherit; }
+.whopick { display: inline-flex; align-items: center; gap: 6px; font-size: .85rem; color: var(--muted); font-weight: 600; }
+.whopick select { padding: 8px 10px; border: 1px solid var(--brand); border-radius: 10px; background: var(--brand); color: var(--brand-ink);
+  font: inherit; font-size: .95rem; font-weight: 700; cursor: pointer; }
+.whopick select option { background: var(--card); color: var(--ink); }
 .seg { display: inline-flex; border: 1px solid var(--line); border-radius: 10px; overflow: hidden; }
 .seg button { border: 0; padding: 8px 14px; background: var(--card); cursor: pointer; font-weight: 600; }
 .seg button[aria-pressed="true"] { background: var(--brand); color: var(--brand-ink); }
